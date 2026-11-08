@@ -162,20 +162,18 @@ class NuqtaOcrEngine(OcrEngine):
 
     @staticmethod
     def generate_hocr(input_file: Path, output_hocr: Path, output_text: Path, options) -> None:
-        from nuqta import to_hocr, validate_hocr
         from PIL import Image
 
+        from nuqta import read_lines, to_hocr, validate_hocr
+
         ocr = _get_model(options)
-        result = ocr.read(str(input_file), layout=True, max_new_tokens=_ns(options).max_new_tokens)
+        result = read_lines(ocr, [str(input_file)], mode='as-written',
+                            max_new_tokens=_ns(options).max_new_tokens)[0]
         page = result.pages[0]
         if any(re.search(r'[0-9A-Za-z\u0660-\u0669\u06F0-\u06F9]', line.text) for line in page.lines):
             log.warning(
                 'Nuqta line contains digits or Latin text; OCRmyPDF 17.13 may extract those '
                 'runs reversed in the PDF text layer (line-level word boxes).'
-            )
-        if page.warnings:
-            raise RuntimeError(
-                'Nuqta output failed validation for ' + str(input_file) + ': ' + '; '.join(page.warnings)
             )
         with Image.open(input_file) as image:
             dpi_pair = image.info.get('dpi')

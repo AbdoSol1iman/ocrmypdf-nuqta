@@ -1,16 +1,17 @@
 # ocrmypdf-nuqta
 
-An [OCRmyPDF](https://ocrmypdf.readthedocs.io/) engine plugin that uses
-[Nuqta](https://github.com/SalahAlHaismawi/nuqta-ocr) for Arabic OCR. Nuqta is
-a vision-language model that preserves printed tashkeel (diacritics), which
-Tesseract does not.
+An early **prototype** [OCRmyPDF](https://ocrmypdf.readthedocs.io/) engine
+plugin that uses [Nuqta](https://github.com/SalahAlHaismawi/nuqta-ocr) for
+Arabic OCR. Nuqta is a vision-language model that preserves printed tashkeel
+(diacritics). This is not production software and is not on PyPI.
 
-Status: prototype. Single-column pages, line-level hOCR, one worker.
+Status: single-column pages, line-level hOCR, one worker. Word-level boxes and
+a persistent inference server are not implemented.
 
 ## Install
 
 ```bash
-# not on PyPI yet
+# from source; not on PyPI
 pip install "ocrmypdf-nuqta @ git+https://github.com/AbdoSol1iman/ocrmypdf-nuqta"
 ```
 
@@ -35,21 +36,27 @@ ocrmypdf --nuqta-device cuda -l ara in.pdf out.pdf
 | `--nuqta-max-new-tokens` | `1024` | token budget per line |
 
 The plugin forces `--jobs 1`: a model per OCRmyPDF worker would exhaust memory.
-A persistent inference server is future work.
 
-## Limits
+## Known limits
 
-- **GPU strongly recommended.** On a 4-core CPU the 0.8B model took tens of
-  seconds per line; a page has ~20-30 lines. The plugin logs a warning when it
-  falls back to CPU.
+- **Early prototype.** No output-quality validation, no word-level boxes, no
+  benchmark suite, and no PyPI release.
+- **GPU needed in practice.** CPU inference is far too slow for normal use;
+  the plugin logs a warning when it falls back to CPU. The one wall-clock
+  observation we have is in [MEASUREMENTS.md](MEASUREMENTS.md); it is not a
+  controlled benchmark.
 - **Single column only.** Line boxes come from a horizontal projection
   profile; two columns are read across, not down.
-- **Line-level hOCR.** Each line is one `ocrx_word` spanning the line box, so
-  PDF text selection snaps to whole lines. Word-level boxes are future work.
-- **Arabic only.** Latin words and digits inside Arabic lines are read, but
-  OCRmyPDF 17.13's fpdf2 renderer reverses Arabic-Indic digits and Latin runs
-  when a line is emitted as one word (it pre-reverses RTL text and relies on
-  bidi to restore it). Word-level boxes are the fix and the next step.
+- **Line-level hOCR.** Each line is one `ocrx_word` spanning the line box.
+  Selection snaps to whole lines. In OCRmyPDF 17.13 this also means
+  Arabic-Indic digits and mixed Latin/Arabic runs can be extracted reversed;
+  isolated digits on their own line may be correct. Search is therefore
+  unreliable for numerals.
+- **Search is diacritic-sensitive.** Vocalized strings match the text layer;
+  unvocalized queries do not match vocalized text. That is a viewer/analyzer
+  limitation, not fixed by this plugin.
+- **Arabic only.** Latin words inside Arabic lines are read, but the text
+  layer may garble them.
 - `--pdf-renderer sandwich` is not supported; the default `fpdf2` hOCR path is.
 - Tested against OCRmyPDF 17.13.0; the hOCR shape follows its parser (one
   `ocrx_word` per `ocr_line`, wrapped in `ocr_par`, `lang="ara"`).
