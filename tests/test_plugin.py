@@ -3,12 +3,11 @@ from __future__ import annotations
 from types import SimpleNamespace
 from xml.etree import ElementTree as ET
 
+import ocrmypdf_nuqta as plugin
 import pytest
 from nuqta import Page, Result
-from PIL import Image, ImageDraw
-
-import ocrmypdf_nuqta as plugin
 from ocrmypdf_nuqta import NuqtaOcrEngine, NuqtaOptions
+from PIL import Image, ImageDraw
 
 XHTML = '{http://www.w3.org/1999/xhtml}'
 
