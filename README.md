@@ -15,9 +15,10 @@ pip install "ocrmypdf-nuqta @ git+https://github.com/AbdoSol1iman/ocrmypdf-nuqta
 ```
 
 The plugin is discovered through OCRmyPDF's `ocrmypdf` entry point and is used
-automatically with `--ocr-engine auto` (the default). OCRmyPDF 17.13 still
-checks for the `tesseract` binary even when another engine is selected; install
-Tesseract or make sure a `tesseract` executable is on `PATH`.
+automatically with `--ocr-engine auto` (the default). The first run downloads
+the Nuqta model (~1.7 GB). OCRmyPDF 17.13 still checks for the `tesseract`
+binary even when another engine is selected; install Tesseract or make sure a
+`tesseract` executable is on `PATH`.
 
 ## Use
 
