@@ -55,6 +55,9 @@ def test_check_options_forces_one_worker():
     opts = options(jobs=4)
     plugin.check_options(opts)
     assert opts.jobs == 1
+    auto = options(jobs=None)
+    plugin.check_options(auto)
+    assert auto.jobs == 1
     # explicit Tesseract is left alone
     tess = options(jobs=4, ocr_engine='tesseract')
     plugin.check_options(tess)
