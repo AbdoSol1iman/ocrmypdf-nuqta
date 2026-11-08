@@ -162,9 +162,8 @@ class NuqtaOcrEngine(OcrEngine):
 
     @staticmethod
     def generate_hocr(input_file: Path, output_hocr: Path, output_text: Path, options) -> None:
-        from PIL import Image
-
         from nuqta import read_lines, to_hocr, validate_hocr
+        from PIL import Image
 
         ocr = _get_model(options)
         result = read_lines(ocr, [str(input_file)], mode='as-written',

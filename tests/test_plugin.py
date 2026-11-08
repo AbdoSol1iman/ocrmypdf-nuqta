@@ -4,10 +4,10 @@ from types import SimpleNamespace
 from xml.etree import ElementTree as ET
 
 import pytest
+from nuqta import Page, Result
 from PIL import Image, ImageDraw
 
 import ocrmypdf_nuqta as plugin
-from nuqta import Page, Result
 from ocrmypdf_nuqta import NuqtaOcrEngine, NuqtaOptions
 
 XHTML = '{http://www.w3.org/1999/xhtml}'
