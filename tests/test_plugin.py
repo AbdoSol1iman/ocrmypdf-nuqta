@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
 from types import SimpleNamespace
 from xml.etree import ElementTree as ET
 
 import pytest
+from nuqta import Line, Page, Result
 from PIL import Image
 
 import ocrmypdf_nuqta as plugin
-from nuqta import Line, Page, Result
 from ocrmypdf_nuqta import NuqtaOcrEngine, NuqtaOptions
 
 XHTML = '{http://www.w3.org/1999/xhtml}'
@@ -40,7 +39,7 @@ def clear_model_cache(monkeypatch):
 
 
 def options(**overrides):
-    base = dict(ocr_engine='auto', jobs=0, nuqta=NuqtaOptions())
+    base = {'ocr_engine': 'auto', 'jobs': 0, 'nuqta': NuqtaOptions()}
     base.update(overrides)
     return SimpleNamespace(**base)
 

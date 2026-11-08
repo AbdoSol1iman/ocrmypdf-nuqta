@@ -13,6 +13,7 @@ lock.  Because one model per worker is not affordable, the plugin forces
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from pathlib import Path
 from typing import Literal
@@ -161,20 +162,24 @@ class NuqtaOcrEngine(OcrEngine):
 
     @staticmethod
     def generate_hocr(input_file: Path, output_hocr: Path, output_text: Path, options) -> None:
-        from PIL import Image
-
         from nuqta import to_hocr, validate_hocr
+        from PIL import Image
 
         ocr = _get_model(options)
         result = ocr.read(str(input_file), layout=True, max_new_tokens=_ns(options).max_new_tokens)
         page = result.pages[0]
+        if any(re.search(r'[0-9A-Za-z\u0660-\u0669\u06F0-\u06F9]', line.text) for line in page.lines):
+            log.warning(
+                'Nuqta line contains digits or Latin text; OCRmyPDF 17.13 may extract those '
+                'runs reversed in the PDF text layer (line-level word boxes).'
+            )
         if page.warnings:
             raise RuntimeError(
                 'Nuqta output failed validation for ' + str(input_file) + ': ' + '; '.join(page.warnings)
             )
         with Image.open(input_file) as image:
             dpi_pair = image.info.get('dpi')
-        dpi = int(round(float(dpi_pair[0]))) if dpi_pair else None
+        dpi = round(float(dpi_pair[0])) if dpi_pair else None
         # lang="ara" matters to OCRmyPDF: only ISO 639-2 Arabic maps to its
         # Arabic font.  dir="rtl" is for other hOCR consumers and the spec.
         document = to_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
