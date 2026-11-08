@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # Nuqta's line-layout work lives on this branch until the upstream PR is
+      # released; switch back to `pip install "nuqta-ocr[layout]"` afterwards.
+      - run: pip install "nuqta-ocr[layout] @ git+https://github.com/AbdoSol1iman/nuqta-ocr@hocr-line-layout"
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -q
