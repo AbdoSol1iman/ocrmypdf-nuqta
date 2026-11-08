@@ -10,7 +10,8 @@ Status: prototype. Single-column pages, line-level hOCR, one worker.
 ## Install
 
 ```bash
-pip install "ocrmypdf-nuqta"
+# not on PyPI yet
+pip install "ocrmypdf-nuqta @ git+https://github.com/AbdoSol1iman/ocrmypdf-nuqta"
 ```
 
 The plugin is discovered through OCRmyPDF's `ocrmypdf` entry point and is used
