@@ -15,8 +15,10 @@ a persistent inference server are not implemented.
 pip install "ocrmypdf-nuqta @ git+https://github.com/AbdoSol1iman/ocrmypdf-nuqta"
 ```
 
-This checkout expects the `read_lines` API from Nuqta PR #3; it will not work
-with the released nuqta-ocr 0.2.0 yet. The plugin is
+This checkout needs the `read_lines` API that was merged into Nuqta `main`
+(Nuqta PRs #3 and #4). No Nuqta release contains it yet, so the dependency is
+pinned to upstream commit `832f55a1` until a release supersedes it; the plugin
+will not work with the released nuqta-ocr 0.2.0 from PyPI. The plugin is
 discovered through OCRmyPDF's `ocrmypdf` entry point and is used automatically
 with `--ocr-engine auto` (the default). The first run downloads
 the Nuqta model (~1.7 GB). OCRmyPDF 17.13 still checks for the `tesseract`

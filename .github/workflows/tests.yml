@@ -17,7 +17,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       # Nuqta's line-layout work lives on this branch until the upstream PR is
-      # released; switch back to `pip install "nuqta-ocr[layout]"` afterwards.
-      - run: pip install "nuqta-ocr[layout] @ git+https://github.com/AbdoSol1iman/nuqta-ocr@hocr-line-layout"
+      # No nuqta-ocr release contains `read_lines` yet; pin to the PR #3 merge
+      # commit on upstream main until a release supersedes it.
+      - run: pip install "nuqta-ocr[layout] @ git+https://github.com/SalahAlHaismawi/nuqta-ocr.git@832f55a1703eb88a8e501d74709013c255db6b66"
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q

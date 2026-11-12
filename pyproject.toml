@@ -1,6 +1,6 @@
 [project]
 name = "ocrmypdf-nuqta"
-version = "0.1.0"
+version = "0.1.0.dev0"
 description = "OCRmyPDF engine plugin: Nuqta Arabic OCR with faithful tashkeel and line-level hOCR"
 readme = "README.md"
 license = "Apache-2.0"
@@ -17,7 +17,10 @@ classifiers = [
 ]
 dependencies = [
   "ocrmypdf>=17.13,<18",
-  "nuqta-ocr>=0.2.0",
+  # `read_lines`/`to_hocr` live on upstream main since PR #3/#4 were merged
+  # (no nuqta-ocr release contains them yet); pinned to the PR #3 merge commit
+  # until a release supersedes it.
+  "nuqta-ocr @ git+https://github.com/SalahAlHaismawi/nuqta-ocr.git@832f55a1703eb88a8e501d74709013c255db6b66",
   "numpy>=1.24",
   "opencv-python-headless>=4.8",
   "pydantic>=2",
@@ -35,6 +38,12 @@ Repository = "https://github.com/AbdoSol1iman/ocrmypdf-nuqta"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# The nuqta-ocr pin is a direct git reference until a Nuqta release contains
+# `read_lines`.  Fine for dev builds; PyPI rejects direct references, so a
+# release needs a real nuqta-ocr version on PyPI first.
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ocrmypdf_nuqta"]
