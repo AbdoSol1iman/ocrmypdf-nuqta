@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 from xml.etree import ElementTree as ET
 
@@ -118,3 +119,90 @@ def test_sandwich_renderer_is_rejected(tmp_path):
             output_text=tmp_path / 'page.txt',
             options=options(),
         )
+
+
+# --- dtype auto-detection (monkeypatched torch; no GPU required) ----------
+
+class _FakeCuda:
+    """Stands in for torch.cuda in the dtype/device detection logic."""
+
+    def __init__(self, available=True, bf16=True):
+        self._available = available
+        self._bf16 = bf16
+        self.calls = []
+
+    def is_available(self):
+        return self._available
+
+    def is_bf16_supported(self):
+        self.calls.append('bf16')
+        if self._bf16:
+            return True
+        raise RuntimeError('no bf16')
+
+
+class _FakeTorch:
+    def __init__(self, cuda):
+        self.cuda = cuda
+
+
+def test_dtype_auto_picks_bfloat16_when_supported(monkeypatch):
+    cuda = _FakeCuda(available=True, bf16=True)
+    monkeypatch.setitem(sys.modules, 'torch', _FakeTorch(cuda))
+    assert plugin._resolve_dtype('auto', 'cuda') == 'bfloat16'
+
+
+def test_dtype_auto_falls_back_to_float16(monkeypatch):
+    cuda = _FakeCuda(available=True, bf16=False)
+    monkeypatch.setitem(sys.modules, 'torch', _FakeTorch(cuda))
+    assert plugin._resolve_dtype('auto', 'cuda') == 'float16'
+
+
+def test_dtype_auto_float32_on_cpu(monkeypatch):
+    cuda = _FakeCuda(available=False)
+    monkeypatch.setitem(sys.modules, 'torch', _FakeTorch(cuda))
+    assert plugin._resolve_dtype('auto', 'cpu') == 'float32'
+
+
+def test_dtype_auto_without_torch_is_float32(monkeypatch):
+    monkeypatch.setitem(sys.modules, 'torch', None)
+    assert plugin._resolve_dtype('auto', 'cpu') == 'float32'
+
+
+def test_explicit_dtype_overrides_auto(monkeypatch):
+    cuda = _FakeCuda(available=True, bf16=True)
+    monkeypatch.setitem(sys.modules, 'torch', _FakeTorch(cuda))
+    assert plugin._resolve_dtype('float16', 'cuda') == 'float16'
+    assert plugin._resolve_dtype('bfloat16', 'cpu') == 'bfloat16'
+
+
+def test_dtype_auto_handles_cuda_runtime_error(monkeypatch):
+    class Broken:
+        @staticmethod
+        def is_available():
+            return True
+
+        @staticmethod
+        def is_bf16_supported():
+            raise RuntimeError('driver gone')
+
+    monkeypatch.setitem(sys.modules, 'torch', _FakeTorch(Broken()))
+    assert plugin._resolve_dtype('auto', 'cuda') == 'float16'
+
+
+def test_load_ocr_passes_resolved_dtype(monkeypatch):
+    cuda = _FakeCuda(available=True, bf16=False)
+    monkeypatch.setitem(sys.modules, 'torch', _FakeTorch(cuda))
+    seen = {}
+
+    class FakeOCR:
+        def __init__(self, model, backend='transformers', **kwargs):
+            seen.update(kwargs, model=model, backend=backend)
+
+    monkeypatch.setattr(plugin, '_CPU_WARNED', True)
+    import nuqta
+    monkeypatch.setattr(nuqta, 'OCR', FakeOCR)
+    opts = SimpleNamespace(nuqta=NuqtaOptions(device='cuda', backend='transformers'))
+    plugin._load_ocr(opts)
+    assert seen['dtype'] == 'float16'      # bf16 not supported -> float16
+    assert seen['device_map'] == 'cuda:0'
