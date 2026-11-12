@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
 
-__version__ = '0.1.0'
+__version__ = '0.1.0.dev0'
 DEFAULT_MODEL = 'nuqta-0.8b'
 
 _MODELS: dict[tuple[str, str, str, str], object] = {}
@@ -38,8 +38,17 @@ class NuqtaOptions(BaseModel):
     model: str = Field(default=DEFAULT_MODEL, description='Nuqta model name, hub id or local path')
     backend: Literal['auto', 'transformers', 'vllm'] = Field(default='auto')
     device: Literal['auto', 'cpu', 'cuda'] = Field(default='auto')
-    dtype: Literal['bfloat16', 'float16', 'float32'] = Field(default='bfloat16')
+    dtype: Literal['auto', 'bfloat16', 'float16', 'float32'] = Field(default='auto')
     max_new_tokens: int = Field(default=1024, ge=64, le=8192)
+    # DRAFT (maintainer decision): which script to write into the invisible
+    # text layer. 'as-written' keeps printed tashkeel (faithful, but
+    # unvocalized search does not match vocalized text); 'bare' drops harakat
+    # (searchable, but copied text loses the marks). This prototype defaults
+    # to None == 'as-written' to preserve the current behaviour; the shipped
+    # default is deliberately left to the maintainer.
+    text_layer: Literal['as-written', 'bare'] | None = Field(default=None)
+    # Escape hatch back to the pre-0.1 one-ocrx_word-per-line hOCR shape.
+    line_hocr: bool = Field(default=False)
 
 
 def _ns(options):
@@ -63,9 +72,21 @@ def add_options(parser):
     group.add_argument('--nuqta-device', dest='nuqta_device', default=None,
                        choices=['auto', 'cpu', 'cuda'])
     group.add_argument('--nuqta-dtype', dest='nuqta_dtype', default=None,
-                       choices=['bfloat16', 'float16', 'float32'])
+                       choices=['auto', 'bfloat16', 'float16', 'float32'],
+                       help='bfloat16, float16 or float32; auto picks what the '
+                            'device supports (default: auto)')
     group.add_argument('--nuqta-max-new-tokens', dest='nuqta_max_new_tokens', type=int, default=None,
                        help='token budget per line (default: 1024)')
+    # DRAFT (maintainer decision): default text-layer script, see
+    # NuqtaOptions.text_layer.
+    group.add_argument('--nuqta-text-layer', dest='nuqta_text_layer', default=None,
+                       choices=['as-written', 'bare'],
+                       help='script written into the invisible text layer: '
+                            'as-written keeps tashkeel, bare drops it for '
+                            'searching (DRAFT default: as-written)')
+    group.add_argument('--nuqta-line-hocr', dest='nuqta_line_hocr', action='store_true',
+                       help='emit one ocrx_word per line (pre-0.1 behaviour) '
+                            'instead of word-level boxes')
 
 
 @hookimpl
@@ -92,6 +113,29 @@ def _resolve_device(device: str) -> str:
     return 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
+def _resolve_dtype(dtype: str, device: str) -> str:
+    """Auto dtype: what the device actually supports (task: T4-safe default).
+
+    bfloat16 is only picked where ``torch.cuda.is_bf16_supported()`` says so;
+    otherwise CUDA falls back to float16 and CPU to float32.  An explicit
+    ``--nuqta-dtype`` always wins.
+    """
+    if dtype != 'auto':
+        return dtype
+    try:
+        import torch
+    except ImportError:  # pragma: no cover - the model runtime needs torch anyway
+        return 'float32'
+    if device == 'cuda' and torch.cuda.is_available():
+        try:
+            if torch.cuda.is_bf16_supported():
+                return 'bfloat16'
+        except (AttributeError, RuntimeError):  # pragma: no cover - driver dependent
+            pass
+        return 'float16'
+    return 'float32'
+
+
 def _load_ocr(options):
     """Import Nuqta and load the model.  Kept separate so tests can fake it."""
     from nuqta import OCR
@@ -108,6 +152,7 @@ def _load_ocr(options):
                 backend = 'vllm'
             except ImportError:
                 backend = 'transformers'
+    dtype = _resolve_dtype(ns.dtype, device)
     if device == 'cpu':
         global _CPU_WARNED
         if not _CPU_WARNED:
@@ -116,7 +161,7 @@ def _load_ocr(options):
                 'takes many minutes; use --nuqta-device cuda on a machine with an NVIDIA GPU.'
             )
             _CPU_WARNED = True
-    kwargs: dict = {'dtype': ns.dtype}
+    kwargs: dict = {'dtype': dtype}
     if backend != 'vllm':
         kwargs['device_map'] = 'cuda:0' if device == 'cuda' else 'cpu'
     return OCR(ns.model, backend=backend, **kwargs)
@@ -124,7 +169,9 @@ def _load_ocr(options):
 
 def _get_model(options):
     ns = _ns(options)
-    key = (ns.model, ns.backend, ns.device, ns.dtype)
+    device = _resolve_device(ns.device)
+    dtype = _resolve_dtype(ns.dtype, device)
+    key = (ns.model, ns.backend, device, dtype)
     with _MODEL_LOCK:
         model = _MODELS.get(key)
         if model is None:
@@ -162,24 +209,46 @@ class NuqtaOcrEngine(OcrEngine):
 
     @staticmethod
     def generate_hocr(input_file: Path, output_hocr: Path, output_text: Path, options) -> None:
-        from nuqta import read_lines, to_hocr, validate_hocr
+        from nuqta import read_lines, to_hocr as line_to_hocr, validate_hocr
+        from ocrmypdf_nuqta import words as words_mod
         from PIL import Image
 
         ocr = _get_model(options)
-        result = read_lines(ocr, [str(input_file)], mode='as-written',
-                            max_new_tokens=_ns(options).max_new_tokens)[0]
+        ns = _ns(options)
+        mode = ns.text_layer or 'as-written'
+        result = read_lines(ocr, [str(input_file)], mode=mode,
+                            max_new_tokens=ns.max_new_tokens)[0]
         page = result.pages[0]
         if any(re.search(r'[0-9A-Za-z\u0660-\u0669\u06F0-\u06F9]', line.text) for line in page.lines):
             log.warning(
-                'Nuqta line contains digits or Latin text; OCRmyPDF 17.13 may extract those '
-                'runs reversed in the PDF text layer (line-level word boxes).'
+                'Nuqta line contains digits or Latin text; check the text layer '
+                'extraction order (word-level hOCR addresses the known reversal).'
             )
         with Image.open(input_file) as image:
             dpi_pair = image.info.get('dpi')
         dpi = round(float(dpi_pair[0])) if dpi_pair else None
         # lang="ara" matters to OCRmyPDF: only ISO 639-2 Arabic maps to its
         # Arabic font.  dir="rtl" is for other hOCR consumers and the spec.
-        document = to_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
+        document = None
+        if not ns.line_hocr:
+            try:
+                stats: dict = {}
+                document = words_mod.to_word_hocr(
+                    result, [Image.open(input_file)],
+                    lang='ara', dpi=dpi, title=Path(input_file).name, stats=stats,
+                )
+                if stats.get('fallback'):
+                    log.info(
+                        'word alignment fell back to proportional boxes on %d line(s)',
+                        stats.get('fallback', 0),
+                    )
+            except Exception:
+                log.exception(
+                    'word-level hOCR failed; falling back to line-level boxes'
+                )
+                document = None
+        if document is None:
+            document = line_to_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
         validate_hocr(document)
         Path(output_hocr).write_text(document, encoding='utf-8')
         Path(output_text).write_text(page.text + '\n', encoding='utf-8')

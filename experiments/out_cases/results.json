@@ -1,0 +1,1776 @@
+{
+ "tools": {
+  "line": {
+   "pdftotext": {
+    "cases": 8,
+    "passed": 2,
+    "order_passed": 2,
+    "fraction": 0.25,
+    "order_fraction": 0.25
+   },
+   "mupdf": {
+    "cases": 8,
+    "passed": 5,
+    "order_passed": 5,
+    "fraction": 0.625,
+    "order_fraction": 0.625
+   },
+   "alignment_fallback": 0,
+   "alignment_ok": 0
+  },
+  "token": {
+   "pdftotext": {
+    "cases": 8,
+    "passed": 6,
+    "order_passed": 6,
+    "fraction": 0.75,
+    "order_fraction": 0.75
+   },
+   "mupdf": {
+    "cases": 8,
+    "passed": 3,
+    "order_passed": 4,
+    "fraction": 0.375,
+    "order_fraction": 0.5
+   },
+   "alignment_fallback": 0,
+   "alignment_ok": 8
+  },
+  "run": {
+   "pdftotext": {
+    "cases": 8,
+    "passed": 6,
+    "order_passed": 6,
+    "fraction": 0.75,
+    "order_fraction": 0.75
+   },
+   "mupdf": {
+    "cases": 8,
+    "passed": 3,
+    "order_passed": 4,
+    "fraction": 0.375,
+    "order_fraction": 0.5
+   },
+   "alignment_fallback": 0,
+   "alignment_ok": 8
+  }
+ },
+ "detail": [
+  {
+   "case": "digits_isolated",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "رقم",
+       "الصفحة",
+       "٢٤"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "رقم",
+       "الصفحة",
+       "٢٤"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫رقم الصفحة ‪٤٢‬‬",
+    "mupdf": "رقم الصفحة ٢٤"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "range_dash",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢ - ٢٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢ - ٢٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫[سورة المطفئين آية‪]٦٢ - ٢٢ :‬‬",
+    "mupdf": "] ٢٦- [سورة المطفئين آية: ٢٢"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "list_comma",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٥٧",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٥٧",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫راجع الآيات ‪٦٧ ،٥٧‬‬",
+    "mupdf": "راجع الآيات ٧٥، ٧٦"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "latin_inside",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "Python",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "nohtyP",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "نظام",
+       "Python",
+       "للبرمجة"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "Python",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "nohtyP",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "نظام",
+       "Python",
+       "للبرمجة"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫نظام ‪ nohtyP‬للبرمجة‬",
+    "mupdf": "للبرمجةnohtyP نظام"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "mixed_all",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "٥٦",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Word",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Excel",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "droW",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "استخدم",
+       "Word",
+       "Excel"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "٥٦",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Word",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Excel",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "droW",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "استخدم",
+       "Word",
+       "Excel"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "lecxE ٦٥ ‫ ثم‬droW ٤٢ ‫استخدم‬",
+    "mupdf": "lecxE ثم ٥٦droW استخدم ٢٤"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "verse_marks",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "﴿",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٤",
+       "وقال",
+       "تعالى"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "﴿",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٤",
+       "وقال",
+       "تعالى"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫﴿‪ ﴾٤٢‬وقال تعالى‬",
+    "mupdf": "﴿٢٤﴾ وقال تعالى"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "footnote_mark",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "١",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": ")١(",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "الحديث",
+       "١",
+       "هنا"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "١",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": ")١(",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "الحديث",
+       "١",
+       "هنا"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫الحديث(‪ )١‬هنا‬",
+    "mupdf": "الحديث(١) هنا"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "pure_arabic",
+   "variant": "line",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "سطر عربي",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "الحروف",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "سطر",
+       "عربي",
+       "خالص",
+       "الحروف",
+       "المتصلة"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "سطر عربي",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "الحروف",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "سطر",
+       "عربي",
+       "خالص",
+       "الحروف",
+       "المتصلة"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫سطر عربي خالص من الحروف المتصلة‬",
+    "mupdf": "سطر عربي خالص من الحروف المتصلة"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "digits_isolated",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "رقم",
+       "الصفحة",
+       "٢٤"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "رقم",
+       "الصفحة",
+       "٢٤"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫رقم الصفحة‪٢٤‬‬",
+    "mupdf": "رقم الصفحة ٤٢"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "range_dash",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢ - ٢٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢ - ٢٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫[سورة المطفئين آية‪٢٢ :‬‬ ‫‪٢٦]-‬‬",
+    "mupdf": "[سورة المطفئين آية: ٢٢- ]٦٢"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "list_comma",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٥٧",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٥٧",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫راجع الآيات ‪٧٦ ٧٥،‬‬",
+    "mupdf": "راجع الآيات ،٥٧ ٦٧"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "latin_inside",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "Python",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "nohtyP",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "نظام",
+       "Python",
+       "للبرمجة"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "Python",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "nohtyP",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "نظام",
+       "Python",
+       "للبرمجة"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫نظام ‪Python‬للبرمجة‬",
+    "mupdf": "نظامPython للبرمجة"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "mixed_all",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "٥٦",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Word",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Excel",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "droW",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "استخدم",
+       "Word",
+       "Excel"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "٥٦",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Word",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Excel",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "droW",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "استخدم",
+       "Word",
+       "Excel"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "Excel ٥٦ ‫ ثم‬Word ٢٤ ‫استخدم‬",
+    "mupdf": "استخدم ٤٢Wordثم ٦٥Excel"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "verse_marks",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "﴿",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٤",
+       "وقال",
+       "تعالى"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "﴿",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٤",
+       "وقال",
+       "تعالى"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫﴾‪ ﴿٢٤‬وقال تعالى‬",
+    "mupdf": "﴿﴾٤٢ وقال تعالى"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "footnote_mark",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "١",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": ")١(",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "الحديث",
+       "١",
+       "هنا"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "١",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": ")١(",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "الحديث",
+       "١",
+       "هنا"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫الحديث(‪)١‬هنا‬",
+    "mupdf": ")الحديث(١ هنا"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "pure_arabic",
+   "variant": "token",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "سطر عربي",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "الحروف",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "سطر",
+       "عربي",
+       "خالص",
+       "الحروف",
+       "المتصلة"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "سطر عربي",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "الحروف",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "سطر",
+       "عربي",
+       "خالص",
+       "الحروف",
+       "المتصلة"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫سطر عربي خالص من الحروف المتصلة‬",
+    "mupdf": "سطر عربي خالص من الحروف المتصلة"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "digits_isolated",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "رقم",
+       "الصفحة",
+       "٢٤"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "رقم",
+       "الصفحة",
+       "٢٤"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫رقم الصفحة‪٢٤‬‬",
+    "mupdf": "رقم الصفحة ٤٢"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "range_dash",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢ - ٢٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٦٢ - ٢٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٢",
+       "٢٦"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫[سورة المطفئين آية‪٢٢ :‬‬ ‫‪٢٦]-‬‬",
+    "mupdf": "[سورة المطفئين آية: ٢٢- ]٦٢"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "list_comma",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٥٧",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "sequence",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٥٧",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٧٥",
+       "٧٦"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫راجع الآيات ‪٧٦ ،٧٥‬‬",
+    "mupdf": "راجع الآيات ، ٥٧ ٦٧"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "latin_inside",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "Python",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "nohtyP",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "نظام",
+       "Python",
+       "للبرمجة"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "Python",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "nohtyP",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "نظام",
+       "Python",
+       "للبرمجة"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫نظام ‪Python‬للبرمجة‬",
+    "mupdf": "نظامPython للبرمجة"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "mixed_all",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "٥٦",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Word",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Excel",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "droW",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "استخدم",
+       "Word",
+       "Excel"
+      ],
+      "ok": false
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "٥٦",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Word",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "Excel",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "droW",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "استخدم",
+       "Word",
+       "Excel"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "Excel ٥٦ ‫ ثم‬Word ٢٤ ‫استخدم‬",
+    "mupdf": "استخدم ٤٢Wordثم ٦٥Excel"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "verse_marks",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "﴿",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٤",
+       "وقال",
+       "تعالى"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "٢٤",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": "٤٢",
+      "ok": false,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "﴿",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "٢٤",
+       "وقال",
+       "تعالى"
+      ],
+      "ok": false
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫﴿‪ ﴾٢٤‬وقال تعالى‬",
+    "mupdf": "﴿﴾ ٤٢ وقال تعالى"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "footnote_mark",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "١",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": ")١(",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "الحديث",
+       "١",
+       "هنا"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "١",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "not_contains",
+      "value": ")١(",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "الحديث",
+       "١",
+       "هنا"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫الحديث()‪١‬هنا‬",
+    "mupdf": "(الحديث )١ هنا"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  },
+  {
+   "case": "pure_arabic",
+   "variant": "run",
+   "checks": {
+    "pdftotext": [
+     {
+      "kind": "contains",
+      "value": "سطر عربي",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "الحروف",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "سطر",
+       "عربي",
+       "خالص",
+       "الحروف",
+       "المتصلة"
+      ],
+      "ok": true
+     }
+    ],
+    "mupdf": [
+     {
+      "kind": "contains",
+      "value": "سطر عربي",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "contains",
+      "value": "الحروف",
+      "ok": true,
+      "class": "direction"
+     },
+     {
+      "kind": "sequence",
+      "class": "order",
+      "value": [
+       "سطر",
+       "عربي",
+       "خالص",
+       "الحروف",
+       "المتصلة"
+      ],
+      "ok": true
+     }
+    ]
+   },
+   "extracted": {
+    "pdftotext": "‫سطر عربي خالص من الحروف المتصلة‬",
+    "mupdf": "سطر عربي خالص من الحروف المتصلة"
+   },
+   "spaces": {
+    "doubled_spaces": 0
+   }
+  }
+ ]
+}
