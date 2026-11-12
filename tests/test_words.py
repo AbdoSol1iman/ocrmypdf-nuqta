@@ -65,9 +65,12 @@ def test_align_tokens_pairs_and_splits():
     # RTL: first token is the rightmost segment
     boxes, cost = align_tokens(['كلمة', '٢٤', 'Python'], list(reversed(segments)), direction='rtl')
     assert all(box is not None for box in boxes)
-    assert boxes[0][0] == 300 and boxes[0][2] == 360
-    assert boxes[1][0] == 200 and boxes[1][2] == 240
-    assert boxes[2][0] == 100 and boxes[2][2] == 160
+    assert boxes[0][0] == 300
+    assert boxes[0][2] == 360
+    assert boxes[1][0] == 200
+    assert boxes[1][2] == 240
+    assert boxes[2][0] == 100
+    assert boxes[2][2] == 160
 
 
 def test_align_tokens_distributes_when_counts_differ():
@@ -75,7 +78,8 @@ def test_align_tokens_distributes_when_counts_differ():
     boxes, _cost = align_tokens(['واحد', 'اثنان'], segments, direction='rtl')
     assert all(box is not None for box in boxes)
     # RTL: first token takes the right part of the segment
-    assert boxes[0][2] <= 200 and boxes[0][0] > boxes[1][0]
+    assert boxes[0][2] <= 200
+    assert boxes[0][0] > boxes[1][0]
 
 
 def test_line_segments_splits_at_gaps():
@@ -102,7 +106,8 @@ def test_run_splitting_gives_the_digit_its_own_box():
     line = Line('كلمة٢٤', (70, 30, 210, 74))
     word_lines, _stats = build_word_lines([line], binary_of(image), split_runs=True)
     texts = [word.text for word in word_lines[0].words]
-    assert '٢٤' in texts and 'كلمة' in texts
+    assert '٢٤' in texts
+    assert 'كلمة' in texts
     digit_box = next(word.bbox for word in word_lines[0].words if word.text == '٢٤')
     base_box = next(word.bbox for word in word_lines[0].words if word.text == 'كلمة')
     # RTL: the Arabic base is the right part of the token box
@@ -123,7 +128,9 @@ def test_single_token_line_covers_the_line():
     line = Line('كلمة', (90, 30, 310, 74))
     word_lines, _stats = build_word_lines([line], binary_of(image), split_runs=False)
     word = word_lines[0].words[0]
-    assert word.bbox[0] == 100 and word.bbox[2] == 301   # full ink island (right edge exclusive)
+    # full ink island (right edge exclusive)
+    assert word.bbox[0] == 100
+    assert word.bbox[2] == 301
 
 
 def test_adjacent_pairs_counted_on_token_boxes():
@@ -168,7 +175,8 @@ def test_word_hocr_is_valid_and_inside_the_page():
         x0, y0, x1, y1 = (int(v) for v in word.get('title').split()[1:5])
         assert 0 <= x0 < x1 <= 600
         assert 0 <= y0 < y1 <= 200
-    assert stats['lines'] == 1 and stats['aligned'] == 1
+    assert stats['lines'] == 1
+    assert stats['aligned'] == 1
 
 
 def test_to_word_hocr_checks_page_count():

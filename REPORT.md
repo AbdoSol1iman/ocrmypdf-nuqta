@@ -120,6 +120,43 @@ output.
 
 **Not executed** — no GPU in this environment. `py_compile` and `--help`
 verified; every number it would print is unverified until a T4/RTX run.
+Model-level GPU performance is now available third-party (next section);
+what remains unverified is the *plugin path* (OCRmyPDF + renderer + hOCR
+through this package) on real hardware.
+
+## Third-party GPU measurements of Nuqta (model author, 2026-11-11)
+
+Raw data: `experiments/nuqta-gpu-tests.txt` (verbatim copy of the file the
+Nuqta author provided; measured with Nuqta directly, **not** through this
+plugin). Setup: 0.8B model, vLLM 0.19.1, RTX 5090 Laptop GPU, as-written
+mode, model warmed up; 67 pages across four document sets (turath,
+finepdfs, vandyck, UN), plus 3 mixed Arabic/Latin/digit pages.
+
+- **Throughput**: full page median **3.49 s/page** (10–90 pct 2.2–6.6 s);
+  line mode (what this plugin uses via `read_lines`) **0.79 s/page**
+  (0.54–1.3 s). Segmentation is under 0.1 s of that.
+- **Word recall** (vs ground truth, tashkeel ignored): full **97.0%**, line
+  **95.3%**. Exact tashkeel: full **85.0%**, line **84.8%**. The line-vs-full
+  gap has median 0.9 points and is print-dependent: near zero on clean
+  modern print (UN +0.1, finepdfs −0.8), −4.5 on worn 19th-century print
+  (VanDyck).
+- **Tashkeel dropout in line mode**: on fully-vowelled pages, 25 of 554
+  lines (4.5%) returned no tashkeel at all (each crop decides for itself);
+  full-page reading lost marks on only 1 of 30 such pages. Implication for
+  the `as-written` text layer: a small fraction of lines will be bare even
+  in as-written mode — worth documenting and, later, an upstream
+  `read_many` crop-batching follow-up (the author notes full-page batching
+  already beats per-line batching: 70 pages in 40.9 s vs 55.5 s).
+- **Mixed-script lines read well**: Latin words 96–100%, digits 100%,
+  Arabic 98–100% in both modes — so the digit reversal we fixed was a
+  text-layer/bidi problem, not a recognition problem.
+- **Validation of word-level boxes**: 34% of 1,620 detected lines mix
+  Arabic with digits or Latin (73% of lines on VanDyck, 28% on turath) —
+  confirming that line-as-one-word hOCR would garble about a third of
+  lines on typical book pages.
+- The author offered to run our p21/p22/p27 page images through both modes
+  on the GPU; attaching the images would give plugin-comparable numbers
+  for our audited pages.
 
 ## Task 7 — release preparation
 
@@ -174,9 +211,11 @@ verified; every number it would print is unverified until a T4/RTX run.
 | sdist+wheel build + `twine check` PASS | **measured this session** |
 | Clean-venv wheel install; `--nuqta-*` in `--help` | **measured this session** |
 | Model-card URLs reachable | **measured this session** |
+| Nuqta model GPU throughput/accuracy (0.8B, vLLM, RTX 5090) | **third-party measured** (model author, `experiments/nuqta-gpu-tests.txt`; not the plugin path) |
 | dtype auto on real T4/CUDA hardware | unverified (no GPU) |
 | `scripts/gpu_e2e.py` end-to-end numbers | unverified (compile-checked only) |
-| CPU inference being minutes-per-page | unverified (upstream docs claim) |
+| Plugin-path GPU behaviour (OCRmyPDF + renderer + this plugin) | unverified (no GPU run of the full path) |
+| CPU inference being minutes-per-page | unverified (upstream docs claim; GPU numbers above are third-party) |
 | Dense-print fusion limits on other books | unverified (one book sampled) |
 
 ## Environment and commands
@@ -213,8 +252,15 @@ verified; every number it would print is unverified until a T4/RTX run.
    search recall.
 5. **torch install weight.** The git dependency line installs the full Nuqta
    stack; acceptable but heavy for CPU-only users.
-6. **No GPU verification.** dtype auto and the e2e benchmark are unproven on
-   the target hardware.
+6. **No GPU verification of the plugin path.** dtype auto and the e2e
+   benchmark are unproven on the target hardware. (Model-level GPU numbers
+   exist third-party; the OCRmyPDF plugin path specifically has not been
+   exercised on CUDA.)
+7. **Line-mode tashkeel dropout.** The plugin reads per line (`read_lines`);
+   the author's GPU data shows 4.5% of lines on fully-vowelled pages return
+   with no tashkeel at all, so the `as-written` layer has occasional bare
+   lines by construction. Full-page mode avoids this but is ~4× slower and
+   loses ~1–2 points of word recall; a mode option could be a follow-up.
 
 ## Go / no-go for a 0.1.0 alpha release
 

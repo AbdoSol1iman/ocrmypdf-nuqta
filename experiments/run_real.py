@@ -10,12 +10,13 @@ contains.
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 import sys
 import unicodedata
 from pathlib import Path
+
+import harness_env
 
 HERE = Path(__file__).parent
 OUT_DIR = HERE / 'out_real'
@@ -27,18 +28,16 @@ ARABIC_DIGITS = re.compile(r'[٠-٩]{2,}|\d{2,}')
 
 
 def env_for(variant: str, page: int, stats_path: Path) -> dict:
-    env = dict(os.environ)
+    env = harness_env.ocrmypdf_env()
     env['NUQTA_STUB_VARIANT'] = variant
     env['NUQTA_STUB_LINES_JSON'] = str(SPIKE / f'page_{page}.json')
     env['NUQTA_STUB_STATS'] = str(stats_path)
-    env['PATH'] = '/tmp/opencode/tessroot/usr/bin:' + env['PATH']
-    env['LD_LIBRARY_PATH'] = '/tmp/opencode/tessroot/usr/lib64'
-    env['PYTHONPATH'] = str(HERE.parent / 'src') + ':/tmp/opencode/nuqta-ocr/src'
+    env['PYTHONPATH'] = harness_env.plugin_src() + ':' + env.get('PYTHONPATH', '')
     return env
 
 
 def digit_runs(text: str) -> list[str]:
-    return [m for m in ARABIC_DIGITS.findall(unicodedata.normalize('NFKC', text))]
+    return ARABIC_DIGITS.findall(unicodedata.normalize('NFKC', text))
 
 
 def main() -> int:

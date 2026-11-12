@@ -60,11 +60,13 @@ measured result (see REPORT.md for the run and numbers):
 >   `ocrx_word` per line makes OCRmyPDF's renderer treat the whole line as
 >   one RTL run: 67–100% of digit runs reversed on the audited pages. Kept
 >   only as an escape hatch.
-> - **CPU-only runs are impractical.** Unverified here (no GPU in the
->   dev environment); upstream Nuqta documentation describes CPU
->   inference as minutes per page. See `scripts/gpu_e2e.py` for the
->   benchmark to run on a CUDA machine; numbers from it are unverified
->   until reproduced.
+> - **CPU-only runs are impractical.** Unverified on this dev machine (no
+>   GPU); the model author's GPU measurements (0.8B, vLLM 0.19.1, RTX 5090
+>   Laptop) put a full page at a median 3.49 s and line mode at 0.79 s
+>   (`experiments/nuqta-gpu-tests.txt`) — CPU inference is orders of
+>   magnitude slower. Use `--nuqta-device cuda` on a machine with an NVIDIA
+>   GPU; see `scripts/gpu_e2e.py` for the plugin benchmark, whose numbers
+>   are unverified until reproduced.
 > - **OCRmyPDF still requires tesseract.** OCRmyPDF 17.13 fails at startup
 >   (`MissingDependencyError`) without `tesseract` on PATH even when a
 >   plugin provides the OCR engine (measured). Install `tesseract-ocr`

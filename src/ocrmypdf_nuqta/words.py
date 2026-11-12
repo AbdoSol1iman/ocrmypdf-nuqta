@@ -232,6 +232,88 @@ def _mismatch(expected: float, width: float) -> float:
     return 0.0 if total <= 0 else abs(expected - width) / total
 
 
+def _cell_choice(
+    dp,
+    exp: list[float],
+    widths: list[int],
+    observed: int,
+    i: int,
+    j: int,
+    n: int,
+    m: int,
+) -> tuple[float, tuple]:
+    """Best (cost, move) for placing tokens[i:] against segments[j:].
+
+    Candidates: 1:1 pairing, one token spanning up to four segments (merge,
+    e.g. a word split by a dropped space), several tokens sharing one
+    segment (split, e.g. touching words), and an unclaimed segment
+    (noise).  Non-pairing operations carry a small fixed cost: tokens and
+    ink segments correspond one-to-one most of the time, so a merge/split
+    must be clearly better than a pair to win.
+    """
+    NEG = float('inf')
+    best, move = NEG, ()
+    # 1:1 pairing
+    cost = dp[i + 1][j + 1] + _mismatch(exp[i], widths[j])
+    if cost < best:
+        best, move = cost, ('pair', j + 1)
+    # one token spanning several segments (merged)
+    acc_w = 0.0
+    for k in range(j, min(j + 4, m)):
+        acc_w += widths[k]
+        cost = dp[i + 1][k + 1] + _mismatch(exp[i], acc_w) + _OP_COST['merge']
+        if cost < best:
+            best, move = cost, ('merge', k + 1)
+    # several tokens sharing one segment (split)
+    acc_e = 0.0
+    for k in range(i, min(i + 4, n)):
+        acc_e += exp[k]
+        cost = dp[k + 1][j + 1] + _mismatch(acc_e, widths[j]) + _OP_COST['split']
+        if cost < best:
+            best, move = cost, ('split', k + 1)
+    # unclaimed segment (noise): a skip is never free
+    cost = dp[i][j + 1] + 0.15 * widths[j] / max(1, observed)
+    if cost < best:
+        best, move = cost, ('skip', j + 1)
+    return best, move
+
+
+# Non-pairing operations carry a small fixed cost (see _cell_choice).
+_OP_COST = {'pair': 0.0, 'merge': 0.05, 'split': 0.05, 'skip': 0.0}
+
+_SKIP_WEIGHT = 0.15   # penalty per width unit of a noise segment
+
+
+def _materialise_boxes(
+    choice: list[list[tuple]],
+    token_texts: list[str],
+    segments: list[Segment],
+    direction: str,
+) -> list[Box | None]:
+    """Walk the DP choices and turn them into per-token x-ranges."""
+    boxes: list[Box | None] = []
+    i = j = 0
+    m = len(segments)
+    while i < len(token_texts) and j < m:
+        kind, step = choice[i][j]
+        if kind == 'pair':
+            boxes.append(_xrange_box(segments[j], segments[j]))
+            i, j = i + 1, j + 1
+        elif kind == 'merge':
+            boxes.append(_xrange_box(segments[j], segments[step - 1]))
+            i, j = i + 1, step
+        elif kind == 'split':
+            group = token_texts[i:step]
+            boxes.extend(_distribute(group, segments[j], direction=direction))
+            i, j = step, j + 1
+        else:  # skip segment
+            j = step
+    while i < len(token_texts):
+        boxes.append(None)
+        i += 1
+    return boxes
+
+
 def align_tokens(
     token_texts: list[str],
     segments: list[Segment],
@@ -271,63 +353,19 @@ def align_tokens(
     # Trailing segments nobody claimed: moderate penalty, they are probably
     # noise but a skip is never free.
     for j in range(m - 1, -1, -1):
-        dp[n][j] = dp[n][j + 1] + 0.15 * widths[j] / max(1, observed)
+        dp[n][j] = dp[n][j + 1] + _SKIP_WEIGHT * widths[j] / max(1, observed)
         choice[n][j] = ('skip', j + 1)
-
-    # Non-pairing operations carry a small fixed cost: tokens and ink segments
-    # correspond one-to-one most of the time, so a merge/split must be clearly
-    # better than a pair to win.
-    OP_COST = {'pair': 0.0, 'merge': 0.05, 'split': 0.05, 'skip': 0.0}
 
     for i in range(n - 1, -1, -1):
         for j in range(m - 1, -1, -1):
-            best, move = NEG, ()
-            # 1:1 pairing
-            cost = dp[i + 1][j + 1] + _mismatch(exp[i], widths[j]) + OP_COST['pair']
-            if cost < best:
-                best, move = cost, ('pair', j + 1)
-            # one token spanning several segments (merged)
-            acc_w = 0.0
-            for k in range(j, min(j + 4, m)):
-                acc_w += widths[k]
-                cost = dp[i + 1][k + 1] + _mismatch(exp[i], acc_w) + OP_COST['merge']
-                if cost < best:
-                    best, move = cost, ('merge', k + 1)
-            # several tokens sharing one segment (split)
-            acc_e = 0.0
-            for k in range(i, min(i + 4, n)):
-                acc_e += exp[k]
-                cost = dp[k + 1][j + 1] + _mismatch(acc_e, widths[j]) + OP_COST['split']
-                if cost < best:
-                    best, move = cost, ('split', k + 1)
-            # unclaimed segment (noise)
-            cost = dp[i][j + 1] + 0.15 * widths[j] / max(1, observed)
-            if cost < best:
-                best, move = cost, ('skip', j + 1)
-            dp[i][j] = best
-            choice[i][j] = move
+            dp[i][j], choice[i][j] = _cell_choice(
+                dp, exp, widths, observed, i, j, n, m
+            )
 
-    # Walk the choices and materialise boxes.
-    boxes: list[Box | None] = []
-    i = j = 0
-    while i < n and j < m:
-        kind, step = choice[i][j]
-        if kind == 'pair':
-            boxes.append(_xrange_box(segments[j], segments[j]))
-            i, j = i + 1, j + 1
-        elif kind == 'merge':
-            boxes.append(_xrange_box(segments[j], segments[step - 1]))
-            i, j = i + 1, step
-        elif kind == 'split':
-            group = token_texts[i:step]
-            boxes.extend(_distribute(group, segments[j], direction=direction))
-            i, j = step, j + 1
-        else:  # skip segment
-            j = step
-    while i < n:
-        boxes.append(None)
-        i += 1
-    return boxes, dp[0][0]
+    return (
+        _materialise_boxes(choice, token_texts, segments, direction),
+        dp[0][0],
+    )
 
 
 def _xrange_box(first: Segment, last: Segment) -> Box:
@@ -418,7 +456,7 @@ def run_boxes(word: WordBox, direction: str) -> list[WordBox]:
     for index in order:
         width = span * weights[index] / total if total > 0 else span / len(runs)
         left, right = cursor, cursor + width
-        placed[index] = ((int(round(left)), word.bbox[1], int(round(right)), word.bbox[3]))
+        placed[index] = (int(round(left)), word.bbox[1], int(round(right)), word.bbox[3])
         cursor = right
     for index in range(len(runs)):
         cls, text = runs[index]
@@ -440,6 +478,43 @@ def adjacent_word_pairs(words: list[WordBox]) -> int:
         if gap <= 2:
             count += 1
     return count
+
+
+def _tighter_variant(
+    line_text: str,
+    line_bbox: Box,
+    page_binary,
+    token_texts: list[str],
+    direction: str,
+    best: tuple,
+    best_cost: float,
+) -> tuple[tuple, float]:
+    """Evaluate tighter segmentation thresholds; return the best so far.
+
+    ``best`` is a (touching, words, segments) triple.
+    """
+    for ratio in (0.08, 0.05, 0.03):
+        tighter = line_segments(page_binary, line_bbox, min_gap_ratio=ratio)
+        if len(tighter) > 4 * len(token_texts):
+            break               # speck noise, stop tightening
+        candidate_words, candidate_aligned = word_boxes_for_line(
+            line_text, line_bbox, tighter
+        )
+        if not candidate_aligned:
+            continue
+        candidate_touching = adjacent_word_pairs(candidate_words)
+        candidate_logical = list(reversed(tighter)) if direction == 'rtl' else tighter
+        _boxes, candidate_cost = align_tokens(
+            token_texts, candidate_logical, direction=direction
+        )
+        if candidate_touching < best[0] or (
+            candidate_touching == best[0] and candidate_cost < best_cost
+        ):
+            best = (candidate_touching, candidate_words, len(tighter))
+            best_cost = candidate_cost
+            if candidate_touching == 0:
+                break
+    return best, best_cost
 
 
 def refined_word_boxes(
@@ -467,32 +542,13 @@ def refined_word_boxes(
     touching = adjacent_word_pairs(words)
     if touching == 0:
         return words, aligned, len(segments)
-    best = (touching, words, len(segments))
-    best_cost = float('inf')
     direction = base_direction(line_text)
     logical = list(reversed(segments)) if direction == 'rtl' else segments
-    _boxes, best_cost = align_tokens(token_texts, logical, direction=direction)
-    for ratio in (0.08, 0.05, 0.03):
-        tighter = line_segments(page_binary, line_bbox, min_gap_ratio=ratio)
-        if len(tighter) > 4 * len(token_texts):
-            break               # speck noise, stop tightening
-        candidate_words, candidate_aligned = word_boxes_for_line(
-            line_text, line_bbox, tighter
-        )
-        if not candidate_aligned:
-            continue
-        candidate_touching = adjacent_word_pairs(candidate_words)
-        candidate_logical = list(reversed(tighter)) if direction == 'rtl' else tighter
-        _boxes, candidate_cost = align_tokens(
-            token_texts, candidate_logical, direction=direction
-        )
-        if candidate_touching < best[0] or (
-            candidate_touching == best[0] and candidate_cost < best_cost
-        ):
-            best = (candidate_touching, candidate_words, len(tighter))
-            best_cost = candidate_cost
-            if candidate_touching == 0:
-                break
+    _boxes, base_cost = align_tokens(token_texts, logical, direction=direction)
+    best, _cost = _tighter_variant(
+        line_text, line_bbox, page_binary, token_texts, direction,
+        (touching, words, len(segments)), base_cost,
+    )
     return best[1], True, best[2]
 
 
@@ -525,6 +581,55 @@ def build_word_lines(
     return word_lines, stats
 
 
+def _page_hocr(
+    page,
+    image,
+    page_number: int,
+    lang: str,
+    dpi: int,
+    split_runs: bool,
+) -> tuple[list[str], dict]:
+    """hOCR markup for one page, plus the page's alignment stats."""
+    import cv2
+    import numpy as np
+
+    width, height = int(page.width), int(page.height)
+    if width <= 0 or height <= 0:
+        raise ValueError(
+            'word hOCR needs the page size; use nuqta.read_lines, whose '
+            'pages record their width and height'
+        )
+    page_dpi = dpi if dpi is not None else int(page.dpi or 0)
+    scan_res = f'; scan_res {page_dpi} {page_dpi}' if page_dpi > 0 else ''
+    out = [
+        f'<div class="ocr_page" id="page_{page_number + 1}" '
+        f'title="bbox 0 0 {width} {height}; ppageno {page_number}{scan_res}" '
+        f'lang="{escape(lang)}" dir="rtl">'
+    ]
+    gray = np.asarray(image.convert('L'), dtype=np.uint8)
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    word_lines, page_stats = build_word_lines(page.lines, binary, split_runs=split_runs)
+    for line_number, wline in enumerate(word_lines, 1):
+        x0, y0, x1, y1 = wline.bbox
+        line_id = f'line_{page_number + 1}_{line_number}'
+        out.append(f'<p class="ocr_par" lang="{escape(lang)}" dir="rtl">')
+        out.append(
+            f'<span class="ocr_line" id="{line_id}" '
+            f'title="bbox {x0} {y0} {x1} {y1}" lang="{escape(lang)}" dir="rtl">'
+        )
+        for word_number, word in enumerate(wline.words, 1):
+            wx0, wy0, wx1, wy1 = word.bbox
+            out.append(
+                f'<span class="ocrx_word" id="word_{page_number + 1}_{line_number}_{word_number}" '
+                f'title="bbox {max(0, wx0)} {wy0} {min(width, wx1)} {wy1}">'
+                f'{escape(word.text)}</span>'
+            )
+        out.append('</span>')
+        out.append('</p>')
+    out.append('</div>')
+    return out, page_stats
+
+
 def to_word_hocr(
     result,
     page_images: list,
@@ -542,8 +647,6 @@ def to_word_hocr(
     segmentation.  Raises ``ValueError`` if page sizes are missing.  When
     ``stats`` is a dict, alignment counters are written into it.
     """
-    import numpy as np
-
     if len(page_images) != len(result.pages):
         raise ValueError('one page image per result page is required')
     out: list[str] = [
@@ -561,44 +664,12 @@ def to_word_hocr(
     ]
     stats_total = {'lines': 0, 'aligned': 0, 'fallback': 0}
     for page_number, (page, image) in enumerate(zip(result.pages, page_images)):
-        width, height = int(page.width), int(page.height)
-        if width <= 0 or height <= 0:
-            raise ValueError(
-                'word hOCR needs the page size; use nuqta.read_lines, whose '
-                'pages record their width and height'
-            )
-        page_dpi = int(dpi) if dpi is not None else int(page.dpi or 0)
-        scan_res = f'; scan_res {page_dpi} {page_dpi}' if page_dpi > 0 else ''
-        out.append(
-            f'<div class="ocr_page" id="page_{page_number + 1}" '
-            f'title="bbox 0 0 {width} {height}; ppageno {page_number}{scan_res}" '
-            f'lang="{escape(lang)}" dir="rtl">'
+        page_out, page_stats = _page_hocr(
+            page, image, page_number, lang, dpi, split_runs
         )
-        import cv2
-
-        gray = np.asarray(image.convert('L'), dtype=np.uint8)
-        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        word_lines, page_stats = build_word_lines(page.lines, binary, split_runs=split_runs)
+        out.extend(page_out)
         for key in stats_total:
             stats_total[key] += page_stats[key]
-        for line_number, wline in enumerate(word_lines, 1):
-            x0, y0, x1, y1 = wline.bbox
-            line_id = f'line_{page_number + 1}_{line_number}'
-            out.append(f'<p class="ocr_par" lang="{escape(lang)}" dir="rtl">')
-            out.append(
-                f'<span class="ocr_line" id="{line_id}" '
-                f'title="bbox {x0} {y0} {x1} {y1}" lang="{escape(lang)}" dir="rtl">'
-            )
-            for word_number, word in enumerate(wline.words, 1):
-                wx0, wy0, wx1, wy1 = word.bbox
-                out.append(
-                    f'<span class="ocrx_word" id="word_{page_number + 1}_{line_number}_{word_number}" '
-                    f'title="bbox {max(0, wx0)} {wy0} {min(width, wx1)} {wy1}">'
-                    f'{escape(word.text)}</span>'
-                )
-            out.append('</span>')
-            out.append('</p>')
-        out.append('</div>')
     out += ['</body>', '</html>', '']
     if stats is not None:
         stats.update(stats_total)
