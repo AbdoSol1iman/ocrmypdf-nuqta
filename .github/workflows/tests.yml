@@ -21,6 +21,6 @@ jobs:
       # commit on upstream main until a release supersedes it.  --only-binary
       # keeps pip from building random sdists for the transitive deps (the
       # explicitly given git URL itself is still built from source).
-      - run: pip install --only-binary :all: "nuqta-ocr[layout] @ git+https://github.com/SalahAlHaismawi/nuqta-ocr.git@832f55a1703eb88a8e501d74709013c255db6b66"
+      - run: 'pip install --only-binary :all: "nuqta-ocr[layout] @ git+https://github.com/SalahAlHaismawi/nuqta-ocr.git@832f55a1703eb88a8e501d74709013c255db6b66"'
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
