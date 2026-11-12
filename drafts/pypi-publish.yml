@@ -1,0 +1,64 @@
+# DRAFT — PyPI trusted publishing workflow for ocrmypdf-nuqta.
+#
+# NOT ACTIVE. This file lives outside .github/workflows/ on purpose: it must
+# not run until the maintainer has
+#
+#   1. released a nuqta-ocr version that contains read_lines/to_hocr
+#      (the current git-direct-reference dependency is REJECTED by PyPI),
+#   2. switched pyproject.toml to that released pin and removed
+#      tool.hatch.metadata.allow-direct-references,
+#   3. picked a final version number (0.1.0.dev0 is a placeholder),
+#   4. configured a "trusted publisher" for this repo on pypi.org
+#      (or set a PYPI_API_TOKEN secret and swapped the publish step).
+#
+# To activate: move to .github/workflows/publish.yml, replace the
+# placeholder version below, and uncomment the publish step.
+
+name: DRAFT publish to PyPI (disabled)
+
+on:
+  workflow_dispatch:            # manual trigger only; no tag/branch automation
+    inputs:
+      dry_run:
+        description: 'Build and check only, do not upload'
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Twine check
+        run: python -m twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # publish:
+  #   needs: build
+  #   if: ${{ !inputs.dry_run }}
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     id-token: write          # trusted publishing (OIDC); no API token needed
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: dist
+  #         path: dist/
+  #     - uses: pypa/gh-action-pypi-publish@release/v1
+  #       # with:
+  #       #   repository-url: https://test.pypi.org/legacy/   # dry-run target
