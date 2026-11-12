@@ -10,11 +10,12 @@ earlier spike recordings.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import unicodedata
 from pathlib import Path
+
+import harness_env
 
 HERE = Path(__file__).parent
 OUT_DIR = HERE / 'out_search'
@@ -41,14 +42,12 @@ def normalize(text: str) -> str:
 
 
 def build_pdf(variant: str, layer: str, out: Path) -> None:
-    env = dict(os.environ)
+    env = harness_env.ocrmypdf_env()
     env['NUQTA_STUB_VARIANT'] = 'run'
     env['NUQTA_STUB_LINES_JSON'] = str(SPIKE)
     if layer == 'bare':
         env['NUQTA_STUB_BARE'] = '1'
-    env['PATH'] = '/tmp/opencode/tessroot/usr/bin:' + env['PATH']
-    env['LD_LIBRARY_PATH'] = '/tmp/opencode/tessroot/usr/lib64'
-    env['PYTHONPATH'] = str(HERE.parent / 'src') + ':/tmp/opencode/nuqta-ocr/src'
+    env['PYTHONPATH'] = harness_env.plugin_src() + ':' + env.get('PYTHONPATH', '')
     cmd = [
         sys.executable, '-m', 'ocrmypdf',
         '--plugin', str(HERE / 'stub_engine.py'),

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import harness_env
 
 HERE = Path(__file__).parent
 CASES_DIR = HERE / 'cases'
@@ -16,14 +17,11 @@ VARIANTS = ('line', 'token', 'run')
 
 
 def env_for(variant: str, case_name: str, stats_path: Path) -> dict:
-    env = dict(os.environ)
+    env = harness_env.ocrmypdf_env()
     env['NUQTA_STUB_VARIANT'] = variant
     env['NUQTA_STUB_TEXT'] = str(CASES_DIR / f'{case_name}.txt')
     env['NUQTA_STUB_STATS'] = str(stats_path)
-    # local tesseract satisfies OCRmyPDF's binary check (no engine use)
-    env['PATH'] = '/tmp/opencode/tessroot/usr/bin:' + env['PATH']
-    env['LD_LIBRARY_PATH'] = '/tmp/opencode/tessroot/usr/lib64'
-    env['PYTHONPATH'] = str(HERE.parent / 'src') + ':/tmp/opencode/nuqta-ocr/src'
+    env['PYTHONPATH'] = harness_env.plugin_src() + ':' + env.get('PYTHONPATH', '')
     return env
 
 

@@ -34,7 +34,7 @@ import unicodedata
 from pathlib import Path
 
 PLUGIN = 'ocrmypdf_nuqta'          # entry point; or pass --plugin path
-ARABIC_DIGITS = re.compile(r'[٠-٩]{1,}|[0-9]{1,}')
+ARABIC_DIGITS = re.compile(r'[٠-٩]+|\d+')
 DEFAULT_QUERIES = ['النبي', 'قال', 'الله']
 
 
@@ -112,7 +112,7 @@ class VramSampler(threading.Thread):
 
 def digit_audit(text: str, expected_digits: list[str]) -> dict:
     normalized = unicodedata.normalize('NFKC', text)
-    found = set(ARABIC_DIGITS.findall(normalized))
+    found = {*ARABIC_DIGITS.findall(normalized)}
     reversed_runs = sorted(
         d for d in expected_digits if d not in found and d[::-1] in found
     )
@@ -158,6 +158,8 @@ def main() -> int:
                         help='extra search query; defaults used otherwise')
     parser.add_argument('--dtype', default='auto')
     args = parser.parse_args()
+    if args.pages and not re.fullmatch(r'\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*', args.pages):
+        parser.error('--pages must look like "1-12" or "1,3,5-8"')
 
     input_pdf, output_pdf = Path(args.input_pdf), Path(args.output_pdf)
     if not input_pdf.exists():
@@ -211,8 +213,11 @@ def main() -> int:
         return 1
 
     per_page = {}
-    for match in re.finditer(r'page (\d+)[^\n]*?([\d.]+)s', run.stderr):
-        per_page[int(match.group(1))] = float(match.group(2))
+    for line in run.stderr.splitlines():
+        page_match = re.match(r'\s*page (\d+)\b', line)
+        time_match = re.search(r'([\d.]+)s', line)
+        if page_match and time_match:
+            per_page[int(page_match.group(1))] = float(time_match.group(1))
 
     searches, layer = search_audit(output_pdf, args.query or DEFAULT_QUERIES)
     per_page_digits = {}
