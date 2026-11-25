@@ -16,8 +16,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      # Nuqta's line-layout work lives on this branch until the upstream PR is
-      # released; switch back to `pip install "nuqta-ocr[layout]"` afterwards.
-      - run: pip install "nuqta-ocr[layout] @ git+https://github.com/AbdoSol1iman/nuqta-ocr@hocr-line-layout"
-      - run: pip install -e ".[dev]"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr poppler-utils
+      - run: pip install -e ".[layout,dev]"
       - run: python -m pytest -q

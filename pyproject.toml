@@ -1,7 +1,7 @@
 [project]
 name = "ocrmypdf-nuqta"
 version = "0.1.0"
-description = "OCRmyPDF engine plugin: Nuqta Arabic OCR with faithful tashkeel and line-level hOCR"
+description = "OCRmyPDF engine plugin: Nuqta Arabic OCR with faithful tashkeel and word-level hOCR"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
@@ -17,13 +17,12 @@ classifiers = [
 ]
 dependencies = [
   "ocrmypdf>=17.13,<18",
-  "nuqta-ocr>=0.2.0",
-  "numpy>=1.24",
-  "opencv-python-headless>=4.8",
+  "nuqta-ocr>=0.3.0",
   "pydantic>=2",
 ]
 
 [project.optional-dependencies]
+layout = ["numpy>=1.24", "opencv-python-headless>=4.8"]
 dev = ["pytest>=8", "lxml>=5"]
 
 [project.entry-points."ocrmypdf"]
