@@ -134,3 +134,61 @@ def test_words_module_does_not_require_numpy_or_cv2(monkeypatch):
     monkeypatch.setitem(sys.modules, 'cv2', None)
     words = split_line_words('كتاب العلم المفيد', (40, 80, 760, 120))
     assert [w for w, _ in words] == ['كتاب', 'العلم', 'المفيد']
+
+
+def test_multiword_ligature_expansion_and_discovery():
+    import unicodedata
+
+    multiword_chars = [
+        chr(cp)
+        for cp in range(0x110000)
+        if any(c.isspace() for c in unicodedata.normalize('NFKC', chr(cp)).strip())
+    ]
+    assert '\ufdfa' in multiword_chars  # ﷺ
+    assert '\ufdfb' in multiword_chars  # ﷻ
+
+    line_box = (80, 100, 920, 140)
+    words = split_line_words('قال النبي ﷺ فإنه', line_box)
+    assert [w for w, _ in words] == ['قال', 'النبي', 'صلى', 'الله', 'عليه', 'وسلم', 'فإنه']
+
+    boxes = [b for _, b in words]
+    for i in range(len(boxes) - 1):
+        assert boxes[i][0] > boxes[i + 1][2]
+    for wx0, wy0, wx1, wy1 in boxes:
+        assert line_box[0] <= wx0 < wx1 <= line_box[2]
+        assert wy0 == line_box[1] and wy1 == line_box[3]
+
+
+def test_non_multiword_lines_unchanged():
+    line_box = (80, 100, 920, 140)
+    assert split_line_words('بِسْمِ ﷲ الرَّحْمَٰنِ ﻻ إِلَٰهَ', line_box) == [
+        ('بِسْمِ', (795, 100, 920, 140)),
+        ('ﷲ', (609, 100, 776, 140)),
+        ('الرَّحْمَٰنِ', (341, 100, 591, 140)),
+        ('ﻻ', (238, 100, 322, 140)),
+        ('إِلَٰهَ', (80, 100, 205, 140)),
+    ]
+
+
+def test_multiword_ligature_mixed_with_digits_and_latin():
+    line_box = (80, 100, 960, 140)
+    words = split_line_words('النبي ﷺ عام 2024 test ٢٤ خير', line_box)
+    assert [w for w, _ in words] == [
+        'النبي',
+        'صلى',
+        'الله',
+        'عليه',
+        'وسلم',
+        'عام',
+        '2024',
+        'test',
+        '٢٤',
+        'خير',
+    ]
+    by_word = dict(words)
+    assert by_word['النبي'][0] > by_word['صلى'][2]
+    assert by_word['وسلم'][0] > by_word['عام'][2]
+    assert by_word['عام'][0] > by_word['٢٤'][2]
+    assert by_word['2024'][2] < by_word['test'][0]
+    assert by_word['test'][2] < by_word['٢٤'][0]
+    assert by_word['2024'][0] > by_word['خير'][2]

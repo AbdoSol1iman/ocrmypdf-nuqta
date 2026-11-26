@@ -44,6 +44,15 @@ class _ResultLike(Protocol):
     pages: list[_PageLike]
 
 
+def _expand_multiword_ligatures(text: str) -> str:
+    """Expand single-codepoint multi-word ligatures (e.g. U+FDFA, U+FDFB) before splitting."""
+    parts: list[str] = []
+    for ch in text:
+        expanded = unicodedata.normalize('NFKC', ch)
+        parts.append(expanded if any(c.isspace() for c in expanded.strip()) else ch)
+    return ''.join(parts)
+
+
 def _char_weight(ch: str) -> int:
     """Return display-width weight for one character (0 for combining marks)."""
     expanded = unicodedata.normalize('NFKC', ch)
@@ -130,7 +139,7 @@ def split_line_words(
     if x1 <= x0 or y1 <= y0:
         raise ValueError(f'invalid line bbox {bbox!r}')
 
-    tokens = text.split()
+    tokens = _expand_multiword_ligatures(text).split()
     if not tokens:
         return []
     if len(tokens) == 1:
