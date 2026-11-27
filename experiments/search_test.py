@@ -10,6 +10,7 @@ earlier spike recordings.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import unicodedata
@@ -20,7 +21,8 @@ import harness_env
 HERE = Path(__file__).parent
 OUT_DIR = HERE / 'out_search'
 PAGE = 22
-PAGE_IMAGE = f'/home/dev911/ocr-bench/data/book/page_{PAGE}.png'
+BENCH_DIR = Path(os.environ.get('OCR_BENCH_DIR', '~/ocr-bench')).expanduser()
+PAGE_IMAGE = str(BENCH_DIR / 'data' / 'book' / f'page_{PAGE}.png')
 SPIKE = HERE / 'spike_out' / f'page_{PAGE}.json'
 
 TASHKEEL_RANGES = (
@@ -54,7 +56,7 @@ def build_pdf(variant: str, layer: str, out: Path) -> None:
         '--image-dpi', '200', '-l', 'ara', '--output-type', 'pdf',
         '--jobs', '1', '--force-ocr', PAGE_IMAGE, str(out),
     ]
-    run = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    run = subprocess.run(cmd, check=False, capture_output=True, text=True, env=env)
     if run.returncode != 0:
         raise RuntimeError(f'ocrmypdf failed for {layer}: {run.stderr[-500:]}')
 
@@ -103,7 +105,7 @@ def main() -> int:
         entry = {'query': query}
         for layer, pdf in layers.items():
             (raw, norm), extracted = pdftotext_search(pdf, query)
-            (mraw, mcount), mcount_raw = mupdf_search(pdf, query)
+            (_, mcount), _ = mupdf_search(pdf, query)
             entry[layer] = {
                 'pdftotext_raw_match': raw,
                 'pdftotext_normalized_match': norm,

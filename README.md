@@ -4,15 +4,50 @@ An **alpha** [OCRmyPDF](https://ocrmypdf.readthedocs.io/) engine plugin for
 [Nuqta OCR](https://github.com/SalahAlHaismawi/nuqta-ocr) (Arabic OCR with
 faithful tashkeel / diacritics).
 
-Status: **Alpha** (not on PyPI). Supports single-column Arabic pages with
-proportional word-level `ocrx_word` hOCR boxes, running in one worker
-(`--jobs 1`).
+## Project status
 
-## Supported OCRmyPDF versions
+**Alpha.** The plugin runs end to end with the real model and produces a
+searchable PDF, but it is not on PyPI, the output may still change between
+releases, and it covers single-column Arabic pages only.
 
-- **Requirement:** `ocrmypdf>=17.13,<18`
-- **Verified:** End-to-end run with the real `nuqta-0.8b` model on a Colab T4
-  with OCRmyPDF `17.14.2`; unit and e2e tests in the suite use a fake Nuqta.
+| Item | Status |
+| --- | --- |
+| Maturity | Alpha, not on PyPI |
+| Scope | Single-column Arabic pages, one worker (`--jobs 1`) |
+| OCRmyPDF | `ocrmypdf>=17.13,<18` |
+| Default engine | Tesseract — Nuqta is opt-in |
+| Test suite | Passing (1 xfailed: digit order); fake Nuqta, no model or network |
+| Real-model run | `nuqta-0.8b` on a Colab T4 with OCRmyPDF `17.14.2` |
+| CI | Linux, Python 3.11 and 3.12 |
+
+### Verified
+
+- `ocrmypdf --ocr-engine nuqta -l ara --nuqta-device cuda in.pdf out.pdf`
+  completes with the real `nuqta-0.8b` weights on a Colab T4 and writes a
+  searchable PDF (OCRmyPDF `17.14.2`).
+- Copying a normally vocalized line out of the result matched the printed page
+  in order, spacing and tashkeel.
+- Tesseract stays the default engine; Nuqta is used only when selected
+  explicitly (covered by a test).
+- The package installs into a clean virtual environment and is discovered
+  through its `ocrmypdf` entry point.
+- The unit and end-to-end tests run against a fake Nuqta, so they need no GPU,
+  no model download and no network.
+
+### Not verified yet
+
+- The `4B` model and the `vllm` backend through the plugin.
+- Copying and searching lines that contain Arabic-Indic digits or mixed
+  Arabic/Latin text in a real PDF reader.
+- A clean throughput measurement for word-level output on a GPU; the recorded
+  CPU numbers are in [MEASUREMENTS.md](MEASUREMENTS.md).
+- Installation from PyPI, since the package is not published.
+
+### Behavioural limits
+
+The limits of the current output — single-column input, proportional word boxes,
+digit ordering, diacritic-sensitive search — are listed under
+[Limitations](#limitations).
 
 ## Install
 
@@ -130,18 +165,15 @@ bash scripts/colab_check.sh book.pdf out.pdf nuqta-0.8b
   [MEASUREMENTS.md](MEASUREMENTS.md). The plugin logs a warning on CPU.
 - **GPU:** Use `--nuqta-device cuda` on a CUDA machine for practical throughput.
 
-## Known limitations
+## Limitations
 
-- **Alpha release:** Not on PyPI.
-- **Untested configurations:** The `4B` model and the `vllm` backend are
-  untested through the plugin.
 - **Single-column pages only:** `nuqta.read_lines` uses a horizontal projection
   profile; multi-column pages are read across columns rather than down.
 - **Proportional word boxes:** Word boxes (`ocrx_word`) are proportional splits
   of line boxes by character width, not detected word bounding boxes.
 - **Arabic-Indic digits and mixed lines:** Arabic-Indic digit runs and mixed
-  Arabic/digit/Latin lines may be extracted in a different order or with
-  missing boundary spaces depending on the PDF tool or viewer.
+  Arabic/digit/Latin lines may be extracted in a different order depending on
+  the PDF tool or viewer.
 - **Diacritic-sensitive search:** PDF viewers match vocalized queries against
   vocalized text layers; unvocalized queries do not match vocalized text.
 - **Renderer support:** `--pdf-renderer sandwich` is not supported; use the
