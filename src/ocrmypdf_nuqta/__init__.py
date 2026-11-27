@@ -1,31 +1,46 @@
-"""OCRmyPDF plugin: Nuqta Arabic OCR with tashkeel, line-level hOCR.
+"""OCRmyPDF plugin: Nuqta Arabic OCR with faithful tashkeel and word-level hOCR.
 
 OCRmyPDF 17.x hands the engine one PNG per page and expects hOCR whose boxes
 are in pixels of that image.  Nuqta segments the page into lines, reads each
-line, and writes the boxes back in the original image frame; this module turns
-that reading into the hOCR shape OCRmyPDF's parser and fpdf2 renderer require.
+line, and writes the boxes back in the original image frame; :mod:`.words`
+splits each line box into proportional ``ocrx_word`` elements with RTL/mixed
+direction handling and emits the hOCR shape OCRmyPDF's parser and fpdf2
+renderer require.
 
-Install the package and OCRmyPDF picks the engine up automatically for
-``--ocr-engine auto``.  The model is loaded once per process, lazily, behind a
+Install the package and OCRmyPDF keeps Tesseract as the default engine unless
+the user selects Nuqta via ``--ocr-engine nuqta``, ``--nuqta``, or any
+``--nuqta-*`` option.  The model is loaded once per process, lazily, behind a
 lock.  Because one model per worker is not affordable, the plugin forces
-``--jobs 1`` (one process, one model).
+``--jobs 1`` (one process, one model) when Nuqta is selected.
 """
 from __future__ import annotations
 
+import importlib.metadata
+import importlib.util
 import logging
-import re
 import threading
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Literal
 
 from ocrmypdf import hookimpl
+from ocrmypdf.exceptions import MissingDependencyError
 from ocrmypdf.pluginspec import OcrEngine, OrientationConfidence
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from .words import build_hocr
 
 log = logging.getLogger(__name__)
 
-__version__ = '0.1.0.dev0'
+__version__ = '0.1.0'
 DEFAULT_MODEL = 'nuqta-0.8b'
+
+MODEL_ALIASES: dict[str, str] = {
+    '0.8b': 'nuqta-0.8b',
+    'nuqta-0.8b': 'nuqta-0.8b',
+    '4b': 'nuqta-4b',
+    'nuqta-4b': 'nuqta-4b',
+}
 
 _MODELS: dict[tuple[str, str, str, str], object] = {}
 _MODEL_LOCK = threading.Lock()
@@ -33,67 +48,175 @@ _CPU_WARNED = False
 
 
 class NuqtaOptions(BaseModel):
-    """Options exposed as ``--nuqta-*`` on the OCRmyPDF command line."""
+    """Options exposed as ``--nuqta`` / ``--nuqta-*`` on the OCRmyPDF command line."""
 
-    model: str = Field(default=DEFAULT_MODEL, description='Nuqta model name, hub id or local path')
+    enabled: bool = Field(
+        default=False,
+        description='Select Nuqta OCR instead of the default Tesseract engine',
+    )
+    model: str = Field(
+        default=DEFAULT_MODEL,
+        description='Nuqta model name (0.8B / 4B / nuqta-0.8b / nuqta-4b), hub id or local path',
+    )
     backend: Literal['auto', 'transformers', 'vllm'] = Field(default='auto')
     device: Literal['auto', 'cpu', 'cuda'] = Field(default='auto')
     dtype: Literal['auto', 'bfloat16', 'float16', 'float32'] = Field(default='auto')
     max_new_tokens: int = Field(default=1024, ge=64, le=8192)
-    # DRAFT (maintainer decision): which script to write into the invisible
-    # text layer. 'as-written' keeps printed tashkeel (faithful, but
-    # unvocalized search does not match vocalized text); 'bare' drops harakat
-    # (searchable, but copied text loses the marks). This prototype defaults
-    # to None == 'as-written' to preserve the current behaviour; the shipped
-    # default is deliberately left to the maintainer.
     text_layer: Literal['as-written', 'bare'] | None = Field(default=None)
-    # Escape hatch back to the pre-0.1 one-ocrx_word-per-line hOCR shape.
     line_hocr: bool = Field(default=False)
 
+    @field_validator('model')
+    @classmethod
+    def _normalize_model(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError('model must not be empty')
+        return MODEL_ALIASES.get(stripped.lower(), stripped)
 
-def _ns(options):
-    """The plugin options namespace, with defaults for plain namespaces."""
+
+_NUQTA_VALUE_ATTRS = (
+    'nuqta_model',
+    'nuqta_backend',
+    'nuqta_device',
+    'nuqta_dtype',
+    'nuqta_max_new_tokens',
+    'nuqta_text_layer',
+)
+_NUQTA_BOOL_ATTRS = ('nuqta_enabled', 'nuqta_line_hocr')
+
+
+def _is_nuqta_selected(options) -> bool:
+    """Return True only when the user opted into Nuqta (keep Tesseract default)."""
+    if options is None:
+        return False
+    ocr_engine = getattr(options, 'ocr_engine', 'auto')
+    if ocr_engine == 'nuqta':
+        return True
+    if ocr_engine not in (None, 'auto'):
+        return False
+    extra = getattr(options, 'extra_attrs', None)
+    if isinstance(extra, dict):
+        if any(extra.get(attr) for attr in _NUQTA_BOOL_ATTRS):
+            return True
+        if any(extra.get(attr) is not None for attr in _NUQTA_VALUE_ATTRS):
+            return True
+    if any(getattr(options, attr, False) for attr in _NUQTA_BOOL_ATTRS):
+        return True
+    namespace = getattr(options, 'nuqta', None)
+    return bool(namespace is not None and getattr(namespace, 'enabled', False))
+
+
+def _ns(options) -> NuqtaOptions:
+    """Return the plugin options namespace, with defaults for plain namespaces."""
     namespace = getattr(options, 'nuqta', None)
     return namespace if namespace is not None else NuqtaOptions()
 
 
 @hookimpl
-def register_options():
+def register_options() -> dict[str, type[BaseModel]]:
     return {'nuqta': NuqtaOptions}
 
 
 @hookimpl
-def add_options(parser):
+def add_options(parser: ArgumentParser) -> None:
+    for action in getattr(parser, '_actions', ()):
+        if (
+            getattr(action, 'dest', None) == 'ocr_engine'
+            and isinstance(getattr(action, 'choices', None), list)
+            and 'nuqta' not in action.choices
+        ):
+            action.choices.append('nuqta')
+            if action.help:
+                action.help += " 'nuqta' uses Nuqta Arabic OCR."
+
     group = parser.add_argument_group('Nuqta OCR', 'Arabic OCR engine with faithful tashkeel')
-    group.add_argument('--nuqta-model', dest='nuqta_model', default=None,
-                       help=f'Nuqta model name, hub id or local path (default: {DEFAULT_MODEL})')
-    group.add_argument('--nuqta-backend', dest='nuqta_backend', default=None,
-                       choices=['auto', 'transformers', 'vllm'])
-    group.add_argument('--nuqta-device', dest='nuqta_device', default=None,
-                       choices=['auto', 'cpu', 'cuda'])
-    group.add_argument('--nuqta-dtype', dest='nuqta_dtype', default=None,
-                       choices=['auto', 'bfloat16', 'float16', 'float32'],
-                       help='bfloat16, float16 or float32; auto picks what the '
-                            'device supports (default: auto)')
-    group.add_argument('--nuqta-max-new-tokens', dest='nuqta_max_new_tokens', type=int, default=None,
-                       help='token budget per line (default: 1024)')
-    # DRAFT (maintainer decision): default text-layer script, see
-    # NuqtaOptions.text_layer.
-    group.add_argument('--nuqta-text-layer', dest='nuqta_text_layer', default=None,
-                       choices=['as-written', 'bare'],
-                       help='script written into the invisible text layer: '
-                            'as-written keeps tashkeel, bare drops it for '
-                            'searching (DRAFT default: as-written)')
-    group.add_argument('--nuqta-line-hocr', dest='nuqta_line_hocr', action='store_true',
-                       help='emit one ocrx_word per line (pre-0.1 behaviour) '
-                            'instead of word-level boxes')
+    group.add_argument(
+        '--nuqta',
+        dest='nuqta_enabled',
+        action='store_true',
+        default=None,
+        help='Use Nuqta Arabic OCR instead of the default Tesseract engine (or pass --ocr-engine nuqta)',
+    )
+    group.add_argument(
+        '--nuqta-model',
+        dest='nuqta_model',
+        default=None,
+        help=(
+            'Nuqta model choice (0.8B, 4B, nuqta-0.8b, nuqta-4b), '
+            f'Hugging Face hub id or local path (default: {DEFAULT_MODEL})'
+        ),
+    )
+    group.add_argument(
+        '--nuqta-backend',
+        dest='nuqta_backend',
+        default=None,
+        choices=['auto', 'transformers', 'vllm'],
+        help='Nuqta inference backend (default: auto)',
+    )
+    group.add_argument(
+        '--nuqta-device',
+        dest='nuqta_device',
+        default=None,
+        choices=['auto', 'cpu', 'cuda'],
+        help='Inference device: auto, cpu or cuda (default: auto)',
+    )
+    group.add_argument(
+        '--nuqta-dtype',
+        dest='nuqta_dtype',
+        default=None,
+        choices=['auto', 'bfloat16', 'float16', 'float32'],
+        help='Model weight dtype; auto picks what the device supports (default: auto)',
+    )
+    group.add_argument(
+        '--nuqta-max-new-tokens',
+        dest='nuqta_max_new_tokens',
+        type=int,
+        default=None,
+        help='token budget per line (default: 1024)',
+    )
+    group.add_argument(
+        '--nuqta-text-layer',
+        dest='nuqta_text_layer',
+        default=None,
+        choices=['as-written', 'bare'],
+        help='script written into the invisible text layer (default: as-written)',
+    )
+    group.add_argument(
+        '--nuqta-line-hocr',
+        dest='nuqta_line_hocr',
+        action='store_true',
+        default=None,
+        help='emit one ocrx_word per line instead of word-level boxes',
+    )
 
 
 @hookimpl
-def check_options(options):
-    """Keep one model in memory and one worker: Nuqta is not cheap to fork."""
-    if getattr(options, 'ocr_engine', 'auto') not in (None, 'auto'):
-        return  # the user selected Tesseract or none explicitly
+def check_options(options) -> None:
+    """Validate Nuqta options and keep one worker so only one model loads."""
+    if not _is_nuqta_selected(options):
+        return  # Tesseract or none stays active; do not alter jobs or require CUDA/vLLM
+
+    ns = _ns(options)
+
+    if ns.device == 'cuda':
+        try:
+            import torch
+        except ImportError as exc:
+            raise MissingDependencyError(
+                '--nuqta-device cuda requested, but PyTorch is not installed'
+            ) from exc
+        if not torch.cuda.is_available():
+            raise MissingDependencyError(
+                '--nuqta-device cuda requested, but CUDA is not available on this machine; '
+                'omit --nuqta-device or pass --nuqta-device cpu'
+            )
+
+    if ns.backend == 'vllm' and importlib.util.find_spec('vllm') is None:
+        raise MissingDependencyError(
+            '--nuqta-backend vllm requested, but vllm is not installed; '
+            'install it with `pip install "nuqta-ocr[vllm]"`'
+        )
+
     jobs = getattr(options, 'jobs', None)
     if jobs != 1:
         log.warning(
@@ -114,12 +237,7 @@ def _resolve_device(device: str) -> str:
 
 
 def _resolve_dtype(dtype: str, device: str) -> str:
-    """Auto dtype: what the device actually supports (task: T4-safe default).
-
-    bfloat16 is only picked where ``torch.cuda.is_bf16_supported()`` says so;
-    otherwise CUDA falls back to float16 and CPU to float32.  An explicit
-    ``--nuqta-dtype`` always wins.
-    """
+    """Auto dtype: pick what the device supports (T4-safe default)."""
     if dtype != 'auto':
         return dtype
     try:
@@ -147,11 +265,7 @@ def _load_ocr(options):
         if device == 'cpu':
             backend = 'transformers'
         else:
-            try:
-                import vllm  # noqa: F401
-                backend = 'vllm'
-            except ImportError:
-                backend = 'transformers'
+            backend = 'vllm' if importlib.util.find_spec('vllm') is not None else 'transformers'
     dtype = _resolve_dtype(ns.dtype, device)
     if device == 'cpu':
         global _CPU_WARNED
@@ -180,17 +294,24 @@ def _get_model(options):
         return model
 
 
+def _nuqta_version() -> str:
+    try:
+        return importlib.metadata.version('nuqta-ocr')
+    except importlib.metadata.PackageNotFoundError:  # pragma: no cover
+        return 'unknown'
+
+
 class NuqtaOcrEngine(OcrEngine):
     @staticmethod
     def version() -> str:
-        return f'nuqta-ocr {__version__}'
+        return f'ocrmypdf-nuqta {__version__} (nuqta-ocr {_nuqta_version()})'
 
     @staticmethod
     def creator_tag(options) -> str:
-        return f'Nuqta {__version__}'
+        return f'Nuqta OCR {__version__} ({_ns(options).model})'
 
     def __str__(self) -> str:
-        return f'Nuqta {__version__}'
+        return f'Nuqta OCR {__version__}'
 
     @staticmethod
     def languages(options) -> set[str]:
@@ -209,46 +330,36 @@ class NuqtaOcrEngine(OcrEngine):
 
     @staticmethod
     def generate_hocr(input_file: Path, output_hocr: Path, output_text: Path, options) -> None:
-        from nuqta import read_lines, to_hocr as line_to_hocr, validate_hocr
-        from ocrmypdf_nuqta import words as words_mod
+        from nuqta import read_lines, validate_hocr
+        from nuqta import to_hocr as line_to_hocr
         from PIL import Image
 
         ocr = _get_model(options)
         ns = _ns(options)
         mode = ns.text_layer or 'as-written'
-        result = read_lines(ocr, [str(input_file)], mode=mode,
-                            max_new_tokens=ns.max_new_tokens)[0]
+        try:
+            result = read_lines(
+                ocr,
+                [str(input_file)],
+                mode=mode,
+                max_new_tokens=ns.max_new_tokens,
+            )[0]
+        except ImportError as exc:
+            raise MissingDependencyError(
+                'Nuqta line segmentation requires NumPy and OpenCV; '
+                'install them with `pip install "ocrmypdf-nuqta[layout]"`'
+            ) from exc
+
         page = result.pages[0]
-        if any(re.search(r'[0-9A-Za-z\u0660-\u0669\u06F0-\u06F9]', line.text) for line in page.lines):
-            log.warning(
-                'Nuqta line contains digits or Latin text; check the text layer '
-                'extraction order (word-level hOCR addresses the known reversal).'
-            )
         with Image.open(input_file) as image:
             dpi_pair = image.info.get('dpi')
         dpi = round(float(dpi_pair[0])) if dpi_pair else None
         # lang="ara" matters to OCRmyPDF: only ISO 639-2 Arabic maps to its
         # Arabic font.  dir="rtl" is for other hOCR consumers and the spec.
-        document = None
-        if not ns.line_hocr:
-            try:
-                stats: dict = {}
-                document = words_mod.to_word_hocr(
-                    result, [Image.open(input_file)],
-                    lang='ara', dpi=dpi, title=Path(input_file).name, stats=stats,
-                )
-                if stats.get('fallback'):
-                    log.info(
-                        'word alignment fell back to proportional boxes on %d line(s)',
-                        stats.get('fallback', 0),
-                    )
-            except Exception:
-                log.exception(
-                    'word-level hOCR failed; falling back to line-level boxes'
-                )
-                document = None
-        if document is None:
+        if ns.line_hocr:
             document = line_to_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
+        else:
+            document = build_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
         validate_hocr(document)
         Path(output_hocr).write_text(document, encoding='utf-8')
         Path(output_text).write_text(page.text + '\n', encoding='utf-8')
@@ -262,6 +373,6 @@ class NuqtaOcrEngine(OcrEngine):
 
 @hookimpl
 def get_ocr_engine(options):
-    if options is not None and getattr(options, 'ocr_engine', 'auto') not in (None, 'auto'):
+    if not _is_nuqta_selected(options):
         return None
     return NuqtaOcrEngine()

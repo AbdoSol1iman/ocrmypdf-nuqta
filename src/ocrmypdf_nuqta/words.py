@@ -1,42 +1,256 @@
-"""Word-level boxes for line-level Nuqta readings.
+"""Word-level bounding box splitting and hOCR export for Nuqta OCR.
 
-Nuqta (since PR #3) returns one text and one box per line.  OCRmyPDF's fpdf2
-renderer decides per ``ocrx_word`` whether to pre-reverse the text for bidi
-extraction (``ocrmypdf.fpdf_renderer.renderer._is_rtl_text``), so a whole line
-kept as a single word garbles Arabic-Indic digits and Latin runs inside an
-Arabic line.  The fix is word-level boxes: one ``ocrx_word`` per token, so the
-renderer's RTL decision is made per script run.
+Nuqta's :func:`nuqta.read_lines` returns one box and one text string per
+detected line.  OCRmyPDF's hOCR parser and fpdf2 PDF renderer expect
+``ocrx_word`` children inside each ``ocr_line``; placing a whole line in a
+single ``ocrx_word`` causes OCRmyPDF's RTL renderer to reverse embedded digits
+and Latin runs character-by-character.
 
-This module turns a :class:`nuqta.LineResult` plus the page image into word
-hOCR.  It is deliberately standalone (only NumPy/OpenCV/PIL and nuqta types)
-and named so it could move upstream into ``nuqta.layout`` later:
-
-1. Binarize the page once (Otsu), then for each line box split the crop at
-   vertical-projection gaps into *ink segments* with pixel x-ranges.
-2. Split the line text into *tokens* (whitespace) and each token into *script
-   runs* (Arabic, Arabic-Indic digits, Latin, ASCII digits, other).
-3. Align tokens to segments with dynamic programming over expected glyph
-   widths (tashkeel weight 0): pairings, a token spanning several segments
-   (merge), and several tokens sharing one segment (split) are all allowed,
-   instead of requiring an exact 1:1 count match.
-4. If a line's aligned boxes come out touching (dense vocalized print), the
-   line is re-segmented at tighter thresholds and the variant with the fewest
-   touching word pairs wins; the DP can merge the extra fragments.
-5. If segmentation yields nothing usable, fall back to proportional
-   distribution across the line box and record the fallback.
-
-Base direction is detected per line from the first strong character; in an
-RTL line, visual (left-to-right) segment order is reversed to match the
-logical order of the tokens Nuqta returned.
+This module lives outside core inference and provides:
+1. Pure-Python proportional word splitting (:func:`split_line_words` and
+   :func:`build_hocr`) with UBA visual slot ordering for mixed RTL/LTR/digits
+   and no NumPy/OpenCV requirement.
+2. Ink-projection + DP alignment helpers (:func:`to_word_hocr`,
+   :func:`build_word_lines`) that lazily import NumPy/OpenCV when invoked.
 """
 from __future__ import annotations
 
+import html
+import itertools
 import unicodedata
 from dataclasses import dataclass, field
 from html import escape
-from xml.etree import ElementTree as ET
+from typing import Protocol
 
 Box = tuple[int, int, int, int]
+
+# Inter-word gap as a fraction of one average character unit.
+_DEFAULT_GAP_RATIO = 0.45
+# Extra clearance on the right of the line-final RTL word: OCRmyPDF's fpdf2
+# renderer appends a trailing space to the last word and reverses RTL words,
+# which shifts that word's glyphs rightward by ~1 space width.
+_DEFAULT_LAST_RTL_EXTRA = 0.35
+
+
+class _LineLike(Protocol):
+    text: str
+    bbox: Box
+
+
+class _PageLike(Protocol):
+    width: int
+    height: int
+    dpi: int
+    lines: list[_LineLike]
+
+
+class _ResultLike(Protocol):
+    pages: list[_PageLike]
+
+
+def _expand_multiword_ligatures(text: str) -> str:
+    """Expand single-codepoint multi-word ligatures (e.g. U+FDFA, U+FDFB) before splitting."""
+    parts: list[str] = []
+    for ch in text:
+        expanded = unicodedata.normalize('NFKC', ch)
+        parts.append(expanded if any(c.isspace() for c in expanded.strip()) else ch)
+    return ''.join(parts)
+
+
+def _char_weight(ch: str) -> int:
+    """Return display-width weight for one character (0 for combining marks)."""
+    expanded = unicodedata.normalize('NFKC', ch)
+    return sum(
+        1
+        for c in expanded
+        if unicodedata.category(c) != 'Mn' and not unicodedata.combining(c)
+    )
+
+
+def _token_weight(token: str) -> float:
+    return max(1.0, float(sum(_char_weight(ch) for ch in token)))
+
+
+def _classify_token(token: str) -> str:
+    """Classify a whitespace-delimited token as 'RTL', 'LTR', or 'NEUTRAL'."""
+    has_rtl = False
+    has_ltr = False
+    for ch in token:
+        bidi = unicodedata.bidirectional(ch)
+        if bidi in ('R', 'AL'):
+            has_rtl = True
+        elif bidi in ('L', 'EN', 'AN'):
+            has_ltr = True
+    if has_rtl and not has_ltr:
+        return 'RTL'
+    if has_ltr and not has_rtl:
+        return 'LTR'
+    if has_rtl and has_ltr:
+        return 'RTL'
+    return 'NEUTRAL'
+
+
+def _visual_order_indices(tokens: list[str]) -> tuple[list[int], list[str]]:
+    """Return token indices in visual left-to-right order for an RTL line.
+
+    Tokens with RTL characters flow right-to-left; contiguous LTR/numeric
+    runs (and neutral separators between them) stay left-to-right inside
+    their RTL slot so Poppler/PDF viewers do not reverse multi-word Latin or
+    number-range runs.
+    """
+    kinds = [_classify_token(token) for token in tokens]
+    for i, kind in enumerate(kinds):
+        if kind == 'NEUTRAL':
+            prev_kind = kinds[i - 1] if i > 0 else 'RTL'
+            next_kind = kinds[i + 1] if i + 1 < len(kinds) else 'RTL'
+            kinds[i] = 'LTR' if (prev_kind == 'LTR' and next_kind == 'LTR') else 'RTL'
+
+    groups: list[list[int]] = []
+    i = 0
+    while i < len(tokens):
+        if kinds[i] == 'LTR':
+            j = i
+            while j < len(tokens) and kinds[j] == 'LTR':
+                j += 1
+            groups.append(list(range(i, j)))
+            i = j
+        else:
+            groups.append([i])
+            i += 1
+
+    visual_indices = [idx for group in reversed(groups) for idx in group]
+    return visual_indices, kinds
+
+
+def split_line_words(
+    text: str,
+    bbox: Box,
+    *,
+    gap_ratio: float = _DEFAULT_GAP_RATIO,
+    last_rtl_extra: float = _DEFAULT_LAST_RTL_EXTRA,
+) -> list[tuple[str, Box]]:
+    """Split a line box proportionally into ``(word_text, word_bbox)`` pairs.
+
+    Pairs are returned in **logical reading order** (matching ``text.split()``),
+    while each word's bounding box reflects its visual horizontal position on
+    an RTL line (RTL words placed right-to-left; embedded LTR/digit runs
+    placed left-to-right within their slot).
+
+    All returned boxes have integer coordinates clamped inside *bbox* with
+    ``wx0 < wx1`` and ``wy0 < wy1``.
+    """
+    x0, y0, x1, y1 = (int(v) for v in bbox)
+    if x1 <= x0 or y1 <= y0:
+        raise ValueError(f'invalid line bbox {bbox!r}')
+
+    tokens = _expand_multiword_ligatures(text).split()
+    if not tokens:
+        return []
+    if len(tokens) == 1:
+        return [(tokens[0], (x0, y0, x1, y1))]
+
+    visual_indices, kinds = _visual_order_indices(tokens)
+    weights = [_token_weight(tokens[idx]) for idx in visual_indices]
+    gaps = [gap_ratio] * (len(visual_indices) - 1)
+
+    if last_rtl_extra > 0 and kinds[-1] == 'RTL':
+        last_pos = visual_indices.index(len(tokens) - 1)
+        if last_pos < len(gaps):
+            gaps[last_pos] += last_rtl_extra
+
+    total_units = sum(weights) + sum(gaps)
+    unit_px = (x1 - x0) / total_units
+
+    boxes: list[Box | None] = [None] * len(tokens)
+    cursor = float(x0)
+    for pos, (token_idx, weight) in enumerate(zip(visual_indices, weights)):
+        span = weight * unit_px
+        wx0 = round(cursor)
+        wx1 = round(cursor + span)
+        wx0 = max(x0, min(wx0, x1 - 1))
+        wx1 = min(x1, max(wx1, wx0 + 1))
+        boxes[token_idx] = (wx0, y0, wx1, y1)
+        if pos < len(gaps):
+            cursor += span + gaps[pos] * unit_px
+
+    return [(token, box) for token, box in zip(tokens, boxes) if box is not None]
+
+
+def _format_bbox(box: Box) -> str:
+    x0, y0, x1, y1 = box
+    return f'bbox {x0} {y0} {x1} {y1}'
+
+
+def build_hocr(
+    result: _ResultLike,
+    *,
+    title: str = 'Nuqta OCR',
+    lang: str = 'ara',
+    dpi: int | None = None,
+) -> str:
+    """Render a line-level Nuqta result as word-level hOCR for OCRmyPDF."""
+    out: list[str] = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<!DOCTYPE html>',
+        (
+            f'<html xmlns="http://www.w3.org/1999/xhtml" '
+            f'xml:lang="{escape_attr(lang)}" lang="{escape_attr(lang)}" dir="rtl">'
+        ),
+        '<head>',
+        '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
+        '<meta name="ocr-system" content="nuqta" />',
+        '<meta name="ocr-capabilities" content="ocr_page ocr_line ocrx_word" />',
+        f'<title>{html.escape(title)}</title>',
+        '</head>',
+        '<body>',
+    ]
+
+    for page_number, page in enumerate(result.pages):
+        width, height = int(page.width), int(page.height)
+        if width <= 0 or height <= 0:
+            raise ValueError(
+                'hOCR needs positive page dimensions; use nuqta.read_lines'
+            )
+        page_dpi = int(dpi) if dpi is not None else int(getattr(page, 'dpi', 0) or 0)
+        scan_res = f'; scan_res {page_dpi} {page_dpi}' if page_dpi > 0 else ''
+        out.append(
+            f'<div class="ocr_page" id="page_{page_number + 1}" '
+            f'title="bbox 0 0 {width} {height}; ppageno {page_number}{scan_res}" '
+            f'lang="{escape_attr(lang)}" dir="rtl">'
+        )
+
+        visible = [line for line in page.lines if line.text.strip()]
+        for line_number, line in enumerate(visible, 1):
+            words = split_line_words(line.text, line.bbox)
+            if not words:
+                continue
+            line_id = f'line_{page_number + 1}_{line_number}'
+            out.append(f'<p class="ocr_par" lang="{escape_attr(lang)}" dir="rtl">')
+            out.append(
+                f'<span class="ocr_line" id="{line_id}" '
+                f'title="{_format_bbox(line.bbox)}" lang="{escape_attr(lang)}" dir="rtl">'
+            )
+            for word_number, (word_text, word_box) in enumerate(words, 1):
+                word_id = f'word_{page_number + 1}_{line_number}_{word_number}'
+                out.append(
+                    f'<span class="ocrx_word" id="{word_id}" '
+                    f'title="{_format_bbox(word_box)}">{html.escape(word_text)}</span>'
+                )
+            out.append('</span>')
+            out.append('</p>')
+
+        out.append('</div>')
+
+    out.extend(['</body>', '</html>', ''])
+    return '\n'.join(out)
+
+
+def escape_attr(value: str) -> str:
+    return html.escape(value, quote=True)
+
+
+# --- Ink-projection / DP word alignment (optional OpenCV/NumPy) ---
+
 
 # Relative advance widths, calibrated by eye against the Arabic font OCRmyPDF
 # embeds; only ratios matter because they are rescaled per line.
@@ -196,7 +410,6 @@ def line_segments(page_binary, bbox: Box, *, min_gap_ratio: float = 0.12, min_se
     Arabic print are roughly 0.15-0.5 of the line height, while gaps between
     letters (and under diacritics) are smaller.
     """
-    import cv2
     import numpy as np
 
     x0, y0, x1, y1 = bbox
@@ -390,13 +603,13 @@ def _distribute(
         cursor = float(segment.x1)
         for index, (token, weight) in enumerate(zip(group, weights)):
             span = segment.width * weight / total if total > 0 else segment.width / len(group)
-            boxes[index] = (int(round(cursor - span)), 0, int(round(cursor)), 0)
+            boxes[index] = (round(cursor - span), 0, round(cursor), 0)
             cursor -= span
     else:
         cursor = float(segment.x0)
         for index, (token, weight) in enumerate(zip(group, weights)):
             span = segment.width * weight / total if total > 0 else segment.width / len(group)
-            boxes[index] = (int(round(cursor)), 0, int(round(cursor + span)), 0)
+            boxes[index] = (round(cursor), 0, round(cursor + span), 0)
             cursor += span
     return boxes
 
@@ -456,7 +669,7 @@ def run_boxes(word: WordBox, direction: str) -> list[WordBox]:
     for index in order:
         width = span * weights[index] / total if total > 0 else span / len(runs)
         left, right = cursor, cursor + width
-        placed[index] = (int(round(left)), word.bbox[1], int(round(right)), word.bbox[3])
+        placed[index] = (round(left), word.bbox[1], round(right), word.bbox[3])
         cursor = right
     for index in range(len(runs)):
         cls, text = runs[index]
@@ -472,7 +685,7 @@ def adjacent_word_pairs(words: list[WordBox]) -> int:
     boxes, before script runs are split off.
     """
     count = 0
-    for first, second in zip(words, words[1:]):
+    for first, second in itertools.pairwise(words):
         gap = max(0, max(first.bbox[0], second.bbox[0])
                   - min(first.bbox[2], second.bbox[2]))
         if gap <= 2:
@@ -602,9 +815,9 @@ def _page_hocr(
     page_dpi = dpi if dpi is not None else int(page.dpi or 0)
     scan_res = f'; scan_res {page_dpi} {page_dpi}' if page_dpi > 0 else ''
     out = [
-        f'<div class="ocr_page" id="page_{page_number + 1}" '
+        (f'<div class="ocr_page" id="page_{page_number + 1}" '
         f'title="bbox 0 0 {width} {height}; ppageno {page_number}{scan_res}" '
-        f'lang="{escape(lang)}" dir="rtl">'
+        f'lang="{escape(lang)}" dir="rtl">')
     ]
     gray = np.asarray(image.convert('L'), dtype=np.uint8)
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -652,8 +865,8 @@ def to_word_hocr(
     out: list[str] = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<!DOCTYPE html>',
-        f'<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="{escape(lang)}" '
-        f'lang="{escape(lang)}" dir="rtl">',
+        (f'<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="{escape(lang)}" '
+        f'lang="{escape(lang)}" dir="rtl">'),
         '<head>',
         '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
         '<meta name="ocr-system" content="nuqta word-level prototype" />',
