@@ -59,14 +59,14 @@ def collect_versions() -> dict:
         versions['torch.cuda.available'] = 'torch missing'
     tesseract = shutil.which('tesseract')
     if tesseract:
-        out = subprocess.run([tesseract, '--version'], capture_output=True, text=True)
+        out = subprocess.run([tesseract, '--version'], check=False, capture_output=True, text=True)
         match = re.search(r'tesseract\s+(\S+)', out.stdout + out.stderr)
         versions['tesseract'] = match.group(1) if match else 'present'
     else:
         versions['tesseract'] = None
     pdftotext = shutil.which('pdftotext')
     if pdftotext:
-        out = subprocess.run(['pdftotext', '-v'], capture_output=True, text=True)
+        out = subprocess.run(['pdftotext', '-v'], check=False, capture_output=True, text=True)
         versions['pdftotext'] = (out.stderr or out.stdout).strip().splitlines()[0]
     return versions
 
@@ -100,7 +100,7 @@ class VramSampler(threading.Thread):
             if smi:
                 out = subprocess.run(
                     [smi, '--query-gpu=memory.used', '--format=csv,noheader,nounits'],
-                    capture_output=True, text=True,
+                    check=False, capture_output=True, text=True,
                 )
                 for line in out.stdout.splitlines():
                     try:
@@ -172,8 +172,8 @@ def main() -> int:
     for page in source:
         page_texts.append(page.get_textpage().get_text_bounded())
     source.close()
-    expected_digits = sorted(set(d for text in page_texts
-                                 for d in ARABIC_DIGITS.findall(text)))
+    expected_digits = sorted({d for text in page_texts
+                              for d in ARABIC_DIGITS.findall(text)})
 
     vram = VramSampler()
     vram.start()
@@ -194,7 +194,7 @@ def main() -> int:
     cmd += [str(input_pdf), str(output_pdf)]
 
     started = time.perf_counter()
-    run = subprocess.run(cmd, capture_output=True, text=True)
+    run = subprocess.run(cmd, check=False, capture_output=True, text=True)
     total_seconds = time.perf_counter() - started
     vram.stop.set()
     vram.join(timeout=2)

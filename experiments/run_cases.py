@@ -52,14 +52,14 @@ def main() -> int:
                 '--output-type', 'pdf', '--jobs', '1',
                 '--force-ocr', str(png), str(pdf),
             ]
-            run = subprocess.run(cmd, capture_output=True, text=True,
+            run = subprocess.run(cmd, check=False, capture_output=True, text=True,
                                  env=env_for(variant, name, stats_path))
             if run.returncode != 0:
                 failures.append((name, variant, 'ocrmypdf failed', run.stderr[-400:]))
                 continue
             txt = OUT_DIR / f'{name}__{variant}.pdftotext.txt'
             pop = subprocess.run(['pdftotext', '-enc', 'UTF-8', str(pdf), str(txt)],
-                                 capture_output=True, text=True)
+                                 check=False, capture_output=True, text=True)
             if pop.returncode != 0:
                 failures.append((name, variant, 'pdftotext failed', pop.stderr[-400:]))
             mtxt = OUT_DIR / f'{name}__{variant}.mupdf.txt'

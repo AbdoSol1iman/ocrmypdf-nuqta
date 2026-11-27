@@ -107,8 +107,7 @@ def draw_case(text: str, path: Path) -> None:
     bbox = draw.textbbox((0, 0), text, font=font, direction='rtl')
     text_width = bbox[2] - bbox[0]
     x = width - 60 - text_width
-    if x < 60:
-        x = 60
+    x = max(x, 60)
     draw.text((x, 40), text, font=font, fill='black', direction='rtl')
     image.save(path, dpi=(200, 200))
 

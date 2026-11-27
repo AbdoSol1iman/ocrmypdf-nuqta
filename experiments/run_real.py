@@ -10,6 +10,7 @@ contains.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -22,7 +23,8 @@ HERE = Path(__file__).parent
 OUT_DIR = HERE / 'out_real'
 VARIANTS = ('line', 'token', 'run')
 PAGES = (21, 22, 27)
-PAGE_IMAGE = '/home/dev911/ocr-bench/data/book/page_{}.png'
+BENCH_DIR = Path(os.environ.get('OCR_BENCH_DIR', '~/ocr-bench')).expanduser()
+PAGE_IMAGE = str(BENCH_DIR / 'data' / 'book' / 'page_{}.png')
 SPIKE = HERE / 'spike_out'
 ARABIC_DIGITS = re.compile(r'[٠-٩]{2,}|\d{2,}')
 
@@ -61,7 +63,7 @@ def main() -> int:
                 '--output-type', 'pdf', '--jobs', '1', '--force-ocr',
                 PAGE_IMAGE.format(page), str(pdf),
             ]
-            run = subprocess.run(cmd, capture_output=True, text=True,
+            run = subprocess.run(cmd, check=False, capture_output=True, text=True,
                                  env=env_for(variant, page, stats_path))
             if run.returncode != 0:
                 failures.append((page, variant, 'ocrmypdf', run.stderr[-300:]))
@@ -74,7 +76,7 @@ def main() -> int:
                 txt = OUT_DIR / f'p{page}__{variant}.{tool}.txt'
                 if extractor:
                     pop = subprocess.run(extractor + [str(pdf), str(txt)],
-                                         capture_output=True, text=True)
+                                         check=False, capture_output=True, text=True)
                     if pop.returncode != 0:
                         failures.append((page, variant, tool, pop.stderr[-300:]))
                         continue

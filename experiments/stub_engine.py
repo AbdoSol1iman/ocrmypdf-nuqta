@@ -65,11 +65,14 @@ class StubEngine(OcrEngine):
             LinePage,
             LineResult,
             segment_page,
-            to_hocr as line_to_hocr,
             validate_hocr,
         )
-        from ocrmypdf_nuqta import words as words_mod
+        from nuqta import (
+            to_hocr as line_to_hocr,
+        )
         from PIL import Image
+
+        from ocrmypdf_nuqta import words as words_mod
 
         variant = os.environ.get('NUQTA_STUB_VARIANT', 'run')
         with Image.open(input_file) as image:
@@ -117,7 +120,7 @@ class StubEngine(OcrEngine):
                     result, [Image.open(input_file)], lang='ara', dpi=dpi,
                     split_runs=(variant == 'run'), stats=stats,
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001 - stub must never fail the hOCR build
                 sys.stderr.write(f'stub: word hOCR failed: {sys.exc_info()[1]}\n')
                 document = None
         if document is None:
