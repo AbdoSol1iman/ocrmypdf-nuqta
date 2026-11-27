@@ -140,8 +140,8 @@ bash scripts/colab_check.sh book.pdf out.pdf nuqta-0.8b
 - **Proportional word boxes:** Word boxes (`ocrx_word`) are proportional splits
   of line boxes by character width, not detected word bounding boxes.
 - **Arabic-Indic digits and mixed lines:** Arabic-Indic digit runs and mixed
-  Arabic/digit/Latin lines may be extracted in a different order or with
-  missing boundary spaces depending on the PDF tool or viewer.
+  Arabic/digit/Latin lines may be extracted in a different order depending on
+  the PDF tool or viewer.
 - **Diacritic-sensitive search:** PDF viewers match vocalized queries against
   vocalized text layers; unvocalized queries do not match vocalized text.
 - **Renderer support:** `--pdf-renderer sandwich` is not supported; use the
