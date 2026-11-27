@@ -3,7 +3,9 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
+.ruff_cache/
 .venv/
+*.zip
 
 # experiment outputs: keep the measurements, not the PDFs
 experiments/**/out_*/**/*.pdf
