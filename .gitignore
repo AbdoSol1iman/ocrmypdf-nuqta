@@ -4,3 +4,6 @@ dist/
 build/
 .pytest_cache/
 .venv/
+
+# experiment outputs: keep the measurements, not the PDFs
+experiments/**/out_*/**/*.pdf

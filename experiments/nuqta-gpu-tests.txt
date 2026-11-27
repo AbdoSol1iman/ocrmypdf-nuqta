@@ -1,0 +1,99 @@
+# Third-party GPU measurements of the Nuqta model (NOT the plugin).
+# Provided by the Nuqta author as a text file (Downloads/nuqta-gpu-tests.txt),
+# received 2026-11-11; hardware RTX 5090 Laptop GPU, vLLM 0.19.1, 0.8B model,
+# as-written mode, model warmed up. Reproduced verbatim below.
+
+GPU numbers
+0.8B, vLLM 0.19.1, RTX 5090 Laptop GPU, as-written mode. The model was warmed up first, and each page was read alone in both modes on the same pages. "Words" is word recall against ground truth with tashkeel ignored; "marks" is with exact tashkeel.
+
+set	pages	full s/page	line s/page	full words	line words	full marks	line marks
+turath	25	2.90	0.66	98.1%	96.6%	85.9%	82.3%
+finepdfs	12	3.79	0.84	96.3%	95.5%	87.3%	86.2%
+vandyck	15	6.07	1.39	93.5%	89.0%	67.4%	73.7%
+un	15	3.08	0.73	99.1%	99.2%	99.1%	99.0%
+all 67		3.81	0.87	97.0%	95.3%	85.0%	84.8%
+Per-page time: the median is 3.49 s for a full page and 0.79 s for line mode, and the 10th–90th percentile range is 2.2–6.6 s against 0.54–1.3 s. Segmentation is under 0.1 s of that.
+Batch: all 70 pages in one call take 40.9 s for full pages and 55.5 s for read_lines. read_lines batches lines one page at a time, so on a batch it loses. Batching the crops of all pages in a single read_many call should fix that; it could be a follow-up.
+Is the 1.7-point gap stable? Mostly, and it depends on the print. The median gap is 0.9 points. 38 pages are within 2 points, line mode is worse by more than 2 points on 27 and better on 2.
+On clean modern print it is close to zero: UN is +0.1 points and finepdfs −0.8.
+Turath is −1.5. Part of that is Quran quotations: read alone, a line sometimes switches to Uthmani spelling (ٱ instead of ا), which the page doesn't print.
+VanDyck, a 19th-century Bible print, is −4.5. Segmentation there is right (every printed line is boxed); the model simply misreads more worn letters when it sees one line without the rest of the page.
+Tashkeel consistency: on fully vowelled pages, 25 of 554 lines (4.5%) came back with no tashkeel at all, while the full-page reading lost the marks on only 1 of 30 such pages. Each crop decides for itself whether the text is vowelled. On VanDyck, line mode actually copies marks better (73.7% against 67.4%).
+Mixed Arabic/Latin/digit pages: I only found 3 in our test sets that pass a strict filter: two UN pages and one Kuwaiti legal page. Both modes read them equally well: Latin words 96–100%, digits 100%, Arabic 98–100%.
+
+For the word-box question the bigger number is this: 34% of all 1,620 detected lines mix Arabic with digits or Latin, mostly verse numbers, footnote marks and dates. VanDyck has them on 73% of lines and turath on 28%. So the single-word RTL reversal you found in OCRmyPDF would affect about a third of lines on typical book pages, which makes word-level boxes worth doing next.
+
+p21 / p22 / p27: those pages are from your book, which I don't have. If you can attach the PDF or the three page images here, I'll run them through both modes on the GPU.
+
+Per-page results (70 pages)
+set	page	lines	full s	lines s	full words	line words	full marks	line marks
+turath	turath:151171:1:519	22	4.45	0.64	99.2%	96.5%	93.0%	92.6%
+turath	turath:1424:3:489	24	3.60	0.74	98.6%	96.6%	96.3%	92.9%
+turath	turath:151164:1:17	20	4.68	0.83	98.3%	92.6%	83.1%	71.4%
+turath	turath:320:2:429	23	2.87	0.66	98.4%	97.3%	95.7%	87.2%
+turath	turath:13580:1:139	20	2.45	0.66	96.1%	93.1%	93.6%	90.6%
+turath	turath:92:1:15	20	2.20	0.62	100.0%	99.5%	99.1%	95.8%
+turath	turath:17066:1:145	20	2.85	0.81	97.3%	94.1%	94.6%	93.2%
+turath	turath:151171:1:17	5	0.88	0.36	100.0%	97.6%	83.3%	76.2%
+turath	turath:151171:1:150	20	3.58	0.81	99.3%	96.5%	84.8%	77.2%
+turath	turath:7844:1:45	24	3.45	0.70	99.2%	98.9%	97.7%	94.2%
+turath	turath:92:1:251	23	2.98	0.59	99.6%	99.1%	98.7%	97.9%
+turath	turath:13580:1:311	7	0.48	0.25	96.3%	92.6%	92.6%	85.2%
+turath	turath:1118:1:13	16	1.83	0.51	98.6%	95.8%	90.2%	86.0%
+turath	turath:6345:1:77	16	2.28	0.47	95.5%	95.5%	13.5%	18.8%
+turath	turath:17066:1:182	20	2.49	0.90	97.5%	97.5%	92.9%	93.7%
+turath	turath:151171:1:313	20	3.76	0.74	98.3%	96.1%	87.6%	80.3%
+turath	turath:1424:6:368	26	3.27	0.72	99.1%	98.8%	96.1%	93.9%
+turath	turath:312:1:3	22	2.47	0.87	98.2%	97.7%	94.5%	92.7%
+turath	turath:1579:1:25	20	3.25	0.74	97.1%	95.2%	89.9%	83.1%
+turath	turath:320:2:223	21	3.84	0.98	99.5%	97.5%	92.7%	86.8%
+turath	turath:1424:7:262	22	2.93	0.54	98.8%	99.2%	93.9%	89.5%
+turath	turath:1579:1:42	21	2.76	0.59	97.7%	98.3%	88.6%	86.9%
+turath	turath:10301:1:152	26	3.73	0.69	97.0%	97.0%	86.1%	83.7%
+turath	turath:6345:1:76	16	2.02	0.54	95.3%	95.3%	13.4%	17.3%
+turath	turath:1424:6:629	24	3.49	0.63	98.9%	97.8%	96.3%	90.4%
+finepdfs	finepdfs:b40fa8f7e62e5533:3	32	5.30	1.07	97.7%	96.8%	93.1%	91.9%
+finepdfs	finepdfs:5d0509c0e53f7589:6	21	5.41	0.98	86.7%	89.0%	51.4%	52.9%
+finepdfs	finepdfs:cdf392579e6cfe09:5	22	5.11	1.01	98.8%	96.7%	97.1%	91.4%
+finepdfs	finepdfs:5d0509c0e53f7589:3	20	3.30	0.87	93.5%	91.1%	83.4%	80.5%
+finepdfs	finepdfs:36189c97f9ee787c:2	27	3.81	0.92	99.7%	98.6%	99.4%	97.4%
+finepdfs	finepdfs:3f79b3c0b2b76f86:12	3	0.84	0.43	100.0%	100.0%	80.8%	92.3%
+finepdfs	finepdfs:bb0a2afbe47d3a6e:10	25	3.63	0.79	97.8%	97.8%	95.7%	95.0%
+finepdfs	finepdfs:4b92e6a6fd1ea250:1	18	3.33	0.84	99.5%	99.0%	86.7%	84.2%
+finepdfs	finepdfs:5d0509c0e53f7589:2	20	5.11	0.66	87.4%	90.5%	84.7%	81.6%
+finepdfs	finepdfs:cdf392579e6cfe09:1	24	3.06	0.84	98.2%	90.8%	89.5%	86.0%
+finepdfs	finepdfs:596664172829f349:0	22	2.07	0.73	98.3%	98.3%	95.0%	93.4%
+finepdfs	finepdfs:b40fa8f7e62e5533:2	30	4.49	0.88	97.4%	96.8%	90.9%	87.7%
+vandyck	vandyck_verified:1372	22	6.45	1.54	92.6%	84.4%	80.7%	59.0%
+vandyck	vandyck_verified:0980	21	6.60	1.25	92.1%	89.0%	81.5%	76.4%
+vandyck	vandyck_verified:1361	22	6.90	1.70	94.7%	90.5%	81.8%	69.7%
+vandyck	vandyck_verified:0981	23	6.44	1.43	91.8%	89.3%	78.3%	77.9%
+vandyck	vandyck_verified:0403	22	6.52	1.49	96.1%	90.7%	84.5%	76.0%
+vandyck	vandyck_verified:0378	22	3.99	1.27	94.4%	91.1%	7.1%	79.5%
+vandyck	vandyck_verified:0964	22	4.81	1.25	93.0%	90.5%	28.8%	69.1%
+vandyck	vandyck_verified:1368	22	6.59	1.15	94.3%	85.3%	76.2%	65.3%
+vandyck	vandyck_verified:0961	23	5.68	1.51	91.4%	85.3%	65.5%	72.8%
+vandyck	vandyck_verified:0956	22	3.70	1.26	92.2%	86.8%	9.0%	76.1%
+vandyck	vandyck_verified:0390	22	6.75	1.33	95.6%	93.7%	81.5%	73.4%
+vandyck	vandyck_verified:0402	22	6.76	1.31	93.0%	89.5%	81.6%	78.1%
+vandyck	vandyck_verified:0958	22	6.60	1.31	92.5%	90.5%	84.2%	77.6%
+vandyck	vandyck_verified:1395	24	6.33	1.31	93.3%	88.3%	83.3%	76.1%
+vandyck	vandyck_verified:0963	22	6.87	1.75	95.5%	89.8%	86.2%	77.6%
+un	un:A/62/778:5	30	2.60	0.68	100.0%	99.7%	100.0%	99.7%
+un	un:A/65/514:13	27	2.36	0.61	100.0%	100.0%	100.0%	99.5%
+un	un:A/70/357:3	30	2.85	0.69	100.0%	100.0%	100.0%	99.7%
+un	un:S/2016/65:3	27	2.37	0.70	99.5%	99.5%	99.5%	98.6%
+un	un:A/HRC/21/27:20	30	2.95	0.72	99.7%	100.0%	99.7%	100.0%
+un	un:S/2010/200:8	30	3.19	0.66	100.0%	99.7%	100.0%	99.7%
+un	un:A/67/831:8	30	2.73	0.59	100.0%	100.0%	100.0%	99.6%
+un	un:A/HRC/36/20:8	9	0.92	0.66	100.0%	100.0%	100.0%	100.0%
+un	un:S/2017/907:7	35	4.40	0.89	99.5%	99.8%	99.5%	99.8%
+un	un:A/74/267:4	37	5.56	0.94	99.3%	99.3%	99.3%	99.1%
+un	un:A/62/412:3	26	2.76	0.71	90.3%	92.2%	90.3%	92.2%
+un	un:A/72/227:17	36	3.65	0.70	99.7%	99.7%	99.7%	99.7%
+un	un:S/2015/713:6	31	2.99	0.54	99.7%	99.4%	99.7%	99.4%
+un	un:A/67/831:5	32	3.31	0.92	99.4%	99.7%	99.4%	99.1%
+un	un:A/HRC/21/27:16	33	3.58	0.97	100.0%	99.1%	100.0%	99.1%
+un (mixed)	un:A/HRC/36/1:16	32	3.61	0.76	99.7%	99.7%	99.7%	99.7%
+un (mixed)	un:E/2005/43:41	29	2.60	0.67	100.0%	100.0%	100.0%	100.0%
+kuwait (mixed)	kuwait:kw_940:184:0	21	2.40	0.57	99.0%	98.4%	99.0%	98.4%

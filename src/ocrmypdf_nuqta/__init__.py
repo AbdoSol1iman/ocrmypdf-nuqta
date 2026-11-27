@@ -60,8 +60,10 @@ class NuqtaOptions(BaseModel):
     )
     backend: Literal['auto', 'transformers', 'vllm'] = Field(default='auto')
     device: Literal['auto', 'cpu', 'cuda'] = Field(default='auto')
-    dtype: Literal['bfloat16', 'float16', 'float32'] = Field(default='bfloat16')
+    dtype: Literal['auto', 'bfloat16', 'float16', 'float32'] = Field(default='auto')
     max_new_tokens: int = Field(default=1024, ge=64, le=8192)
+    text_layer: Literal['as-written', 'bare'] | None = Field(default=None)
+    line_hocr: bool = Field(default=False)
 
     @field_validator('model')
     @classmethod
@@ -72,14 +74,15 @@ class NuqtaOptions(BaseModel):
         return MODEL_ALIASES.get(stripped.lower(), stripped)
 
 
-_NUQTA_TRIGGER_ATTRS = (
-    'nuqta_enabled',
+_NUQTA_VALUE_ATTRS = (
     'nuqta_model',
     'nuqta_backend',
     'nuqta_device',
     'nuqta_dtype',
     'nuqta_max_new_tokens',
+    'nuqta_text_layer',
 )
+_NUQTA_BOOL_ATTRS = ('nuqta_enabled', 'nuqta_line_hocr')
 
 
 def _is_nuqta_selected(options) -> bool:
@@ -93,11 +96,11 @@ def _is_nuqta_selected(options) -> bool:
         return False
     extra = getattr(options, 'extra_attrs', None)
     if isinstance(extra, dict):
-        if extra.get('nuqta_enabled'):
+        if any(extra.get(attr) for attr in _NUQTA_BOOL_ATTRS):
             return True
-        if any(extra.get(attr) is not None for attr in _NUQTA_TRIGGER_ATTRS[1:]):
+        if any(extra.get(attr) is not None for attr in _NUQTA_VALUE_ATTRS):
             return True
-    if getattr(options, 'nuqta_enabled', False):
+    if any(getattr(options, attr, False) for attr in _NUQTA_BOOL_ATTRS):
         return True
     namespace = getattr(options, 'nuqta', None)
     return bool(namespace is not None and getattr(namespace, 'enabled', False))
@@ -161,8 +164,8 @@ def add_options(parser: ArgumentParser) -> None:
         '--nuqta-dtype',
         dest='nuqta_dtype',
         default=None,
-        choices=['bfloat16', 'float16', 'float32'],
-        help='Model weight dtype (default: bfloat16)',
+        choices=['auto', 'bfloat16', 'float16', 'float32'],
+        help='Model weight dtype; auto picks what the device supports (default: auto)',
     )
     group.add_argument(
         '--nuqta-max-new-tokens',
@@ -170,6 +173,20 @@ def add_options(parser: ArgumentParser) -> None:
         type=int,
         default=None,
         help='token budget per line (default: 1024)',
+    )
+    group.add_argument(
+        '--nuqta-text-layer',
+        dest='nuqta_text_layer',
+        default=None,
+        choices=['as-written', 'bare'],
+        help='script written into the invisible text layer (default: as-written)',
+    )
+    group.add_argument(
+        '--nuqta-line-hocr',
+        dest='nuqta_line_hocr',
+        action='store_true',
+        default=None,
+        help='emit one ocrx_word per line instead of word-level boxes',
     )
 
 
@@ -219,6 +236,24 @@ def _resolve_device(device: str) -> str:
     return 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
+def _resolve_dtype(dtype: str, device: str) -> str:
+    """Auto dtype: pick what the device supports (T4-safe default)."""
+    if dtype != 'auto':
+        return dtype
+    try:
+        import torch
+    except ImportError:  # pragma: no cover - the model runtime needs torch anyway
+        return 'float32'
+    if device == 'cuda' and torch.cuda.is_available():
+        try:
+            if torch.cuda.is_bf16_supported():
+                return 'bfloat16'
+        except (AttributeError, RuntimeError):  # pragma: no cover - driver dependent
+            pass
+        return 'float16'
+    return 'float32'
+
+
 def _load_ocr(options):
     """Import Nuqta and load the model.  Kept separate so tests can fake it."""
     from nuqta import OCR
@@ -231,6 +266,7 @@ def _load_ocr(options):
             backend = 'transformers'
         else:
             backend = 'vllm' if importlib.util.find_spec('vllm') is not None else 'transformers'
+    dtype = _resolve_dtype(ns.dtype, device)
     if device == 'cpu':
         global _CPU_WARNED
         if not _CPU_WARNED:
@@ -239,7 +275,7 @@ def _load_ocr(options):
                 'takes many minutes; use --nuqta-device cuda on a machine with an NVIDIA GPU.'
             )
             _CPU_WARNED = True
-    kwargs: dict = {'dtype': ns.dtype}
+    kwargs: dict = {'dtype': dtype}
     if backend != 'vllm':
         kwargs['device_map'] = 'cuda:0' if device == 'cuda' else 'cpu'
     return OCR(ns.model, backend=backend, **kwargs)
@@ -247,7 +283,9 @@ def _load_ocr(options):
 
 def _get_model(options):
     ns = _ns(options)
-    key = (ns.model, ns.backend, ns.device, ns.dtype)
+    device = _resolve_device(ns.device)
+    dtype = _resolve_dtype(ns.dtype, device)
+    key = (ns.model, ns.backend, device, dtype)
     with _MODEL_LOCK:
         model = _MODELS.get(key)
         if model is None:
@@ -293,15 +331,18 @@ class NuqtaOcrEngine(OcrEngine):
     @staticmethod
     def generate_hocr(input_file: Path, output_hocr: Path, output_text: Path, options) -> None:
         from nuqta import read_lines, validate_hocr
+        from nuqta import to_hocr as line_to_hocr
         from PIL import Image
 
         ocr = _get_model(options)
+        ns = _ns(options)
+        mode = ns.text_layer or 'as-written'
         try:
             result = read_lines(
                 ocr,
                 [str(input_file)],
-                mode='as-written',
-                max_new_tokens=_ns(options).max_new_tokens,
+                mode=mode,
+                max_new_tokens=ns.max_new_tokens,
             )[0]
         except ImportError as exc:
             raise MissingDependencyError(
@@ -315,7 +356,10 @@ class NuqtaOcrEngine(OcrEngine):
         dpi = round(float(dpi_pair[0])) if dpi_pair else None
         # lang="ara" matters to OCRmyPDF: only ISO 639-2 Arabic maps to its
         # Arabic font.  dir="rtl" is for other hOCR consumers and the spec.
-        document = build_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
+        if ns.line_hocr:
+            document = line_to_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
+        else:
+            document = build_hocr(result, lang='ara', dpi=dpi, title=Path(input_file).name)
         validate_hocr(document)
         Path(output_hocr).write_text(document, encoding='utf-8')
         Path(output_text).write_text(page.text + '\n', encoding='utf-8')

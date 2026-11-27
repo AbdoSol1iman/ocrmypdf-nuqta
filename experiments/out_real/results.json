@@ -1,0 +1,356 @@
+{
+ "detail": [
+  {
+   "page": 21,
+   "variant": "line",
+   "expected_digit_runs": [
+    "٢٢",
+    "٢٤",
+    "٢٦"
+   ],
+   "pdftotext": {
+    "expected": [
+     "٢٢",
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed": [
+     "٢٤",
+     "٢٦"
+    ],
+    "missing": [
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed_fraction": 0.667
+   },
+   "mupdf": {
+    "expected": [
+     "٢٢",
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   }
+  },
+  {
+   "page": 21,
+   "variant": "token",
+   "expected_digit_runs": [
+    "٢٢",
+    "٢٤",
+    "٢٦"
+   ],
+   "pdftotext": {
+    "expected": [
+     "٢٢",
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   },
+   "mupdf": {
+    "expected": [
+     "٢٢",
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed": [
+     "٢٤",
+     "٢٦"
+    ],
+    "missing": [
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed_fraction": 0.667
+   }
+  },
+  {
+   "page": 21,
+   "variant": "run",
+   "expected_digit_runs": [
+    "٢٢",
+    "٢٤",
+    "٢٦"
+   ],
+   "pdftotext": {
+    "expected": [
+     "٢٢",
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   },
+   "mupdf": {
+    "expected": [
+     "٢٢",
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed": [
+     "٢٤",
+     "٢٦"
+    ],
+    "missing": [
+     "٢٤",
+     "٢٦"
+    ],
+    "reversed_fraction": 0.667
+   }
+  },
+  {
+   "page": 22,
+   "variant": "line",
+   "expected_digit_runs": [
+    "١٨",
+    "٢٥",
+    "٧٥",
+    "٧٦"
+   ],
+   "pdftotext": {
+    "expected": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "missing": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed_fraction": 1.0
+   },
+   "mupdf": {
+    "expected": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   }
+  },
+  {
+   "page": 22,
+   "variant": "token",
+   "expected_digit_runs": [
+    "١٨",
+    "٢٥",
+    "٧٥",
+    "٧٦"
+   ],
+   "pdftotext": {
+    "expected": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   },
+   "mupdf": {
+    "expected": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "missing": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed_fraction": 1.0
+   }
+  },
+  {
+   "page": 22,
+   "variant": "run",
+   "expected_digit_runs": [
+    "١٨",
+    "٢٥",
+    "٧٥",
+    "٧٦"
+   ],
+   "pdftotext": {
+    "expected": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   },
+   "mupdf": {
+    "expected": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "missing": [
+     "١٨",
+     "٢٥",
+     "٧٥",
+     "٧٦"
+    ],
+    "reversed_fraction": 1.0
+   }
+  },
+  {
+   "page": 27,
+   "variant": "line",
+   "expected_digit_runs": [
+    "١٠٩",
+    "٣٠",
+    "٥٤",
+    "٥٥"
+   ],
+   "pdftotext": {
+    "expected": [
+     "١٠٩",
+     "٣٠",
+     "٥٤",
+     "٥٥"
+    ],
+    "reversed": [
+     "١٠٩",
+     "٣٠",
+     "٥٤"
+    ],
+    "missing": [
+     "١٠٩",
+     "٣٠",
+     "٥٤"
+    ],
+    "reversed_fraction": 0.75
+   },
+   "mupdf": {
+    "expected": [
+     "١٠٩",
+     "٣٠",
+     "٥٤",
+     "٥٥"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   }
+  },
+  {
+   "page": 27,
+   "variant": "token",
+   "expected_digit_runs": [
+    "١٠٩",
+    "٣٠",
+    "٥٤",
+    "٥٥"
+   ],
+   "pdftotext": {
+    "expected": [
+     "١٠٩",
+     "٣٠",
+     "٥٤",
+     "٥٥"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   },
+   "mupdf": {
+    "expected": [
+     "١٠٩",
+     "٣٠",
+     "٥٤",
+     "٥٥"
+    ],
+    "reversed": [
+     "١٠٩",
+     "٣٠",
+     "٥٤"
+    ],
+    "missing": [
+     "١٠٩",
+     "٣٠",
+     "٥٤"
+    ],
+    "reversed_fraction": 0.75
+   }
+  },
+  {
+   "page": 27,
+   "variant": "run",
+   "expected_digit_runs": [
+    "١٠٩",
+    "٣٠",
+    "٥٤",
+    "٥٥"
+   ],
+   "pdftotext": {
+    "expected": [
+     "١٠٩",
+     "٣٠",
+     "٥٤",
+     "٥٥"
+    ],
+    "reversed": [],
+    "missing": [],
+    "reversed_fraction": 0.0
+   },
+   "mupdf": {
+    "expected": [
+     "١٠٩",
+     "٣٠",
+     "٥٤",
+     "٥٥"
+    ],
+    "reversed": [
+     "١٠٩",
+     "٣٠",
+     "٥٤"
+    ],
+    "missing": [
+     "١٠٩",
+     "٣٠",
+     "٥٤"
+    ],
+    "reversed_fraction": 0.75
+   }
+  }
+ ],
+ "failures": []
+}

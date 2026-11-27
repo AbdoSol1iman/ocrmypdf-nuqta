@@ -1,0 +1,208 @@
+[
+ {
+  "name": "digits_isolated",
+  "text": "رقم الصفحة ٢٤",
+  "checks": [
+   {
+    "kind": "contains",
+    "value": "٢٤"
+   },
+   {
+    "kind": "not_contains",
+    "value": "٤٢"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "رقم",
+    "الصفحة",
+    "٢٤"
+   ]
+  }
+ },
+ {
+  "name": "range_dash",
+  "text": "[سورة المطفئين آية: ٢٢ - ٢٦]",
+  "checks": [
+   {
+    "kind": "sequence",
+    "values": [
+     "٢٢",
+     "٢٦"
+    ]
+   },
+   {
+    "kind": "not_contains",
+    "value": "٦٢"
+   },
+   {
+    "kind": "not_contains",
+    "value": "٦٢ - ٢٢"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "٢٢",
+    "٢٦"
+   ]
+  }
+ },
+ {
+  "name": "list_comma",
+  "text": "راجع الآيات ٧٥، ٧٦",
+  "checks": [
+   {
+    "kind": "sequence",
+    "values": [
+     "٧٥",
+     "٧٦"
+    ]
+   },
+   {
+    "kind": "not_contains",
+    "value": "٥٧"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "٧٥",
+    "٧٦"
+   ]
+  }
+ },
+ {
+  "name": "latin_inside",
+  "text": "نظام Python للبرمجة",
+  "checks": [
+   {
+    "kind": "contains",
+    "value": "Python"
+   },
+   {
+    "kind": "not_contains",
+    "value": "nohtyP"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "نظام",
+    "Python",
+    "للبرمجة"
+   ]
+  }
+ },
+ {
+  "name": "mixed_all",
+  "text": "استخدم ٢٤ Word ثم ٥٦ Excel",
+  "checks": [
+   {
+    "kind": "contains",
+    "value": "٢٤"
+   },
+   {
+    "kind": "contains",
+    "value": "٥٦"
+   },
+   {
+    "kind": "contains",
+    "value": "Word"
+   },
+   {
+    "kind": "contains",
+    "value": "Excel"
+   },
+   {
+    "kind": "not_contains",
+    "value": "٤٢"
+   },
+   {
+    "kind": "not_contains",
+    "value": "droW"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "استخدم",
+    "Word",
+    "Excel"
+   ]
+  }
+ },
+ {
+  "name": "verse_marks",
+  "text": "﴿٢٤﴾ وقال تعالى",
+  "checks": [
+   {
+    "kind": "contains",
+    "value": "٢٤"
+   },
+   {
+    "kind": "not_contains",
+    "value": "٤٢"
+   },
+   {
+    "kind": "contains",
+    "value": "﴿"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "٢٤",
+    "وقال",
+    "تعالى"
+   ]
+  }
+ },
+ {
+  "name": "footnote_mark",
+  "text": "الحديث(١) هنا",
+  "checks": [
+   {
+    "kind": "contains",
+    "value": "١"
+   },
+   {
+    "kind": "not_contains",
+    "value": ")١("
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "الحديث",
+    "١",
+    "هنا"
+   ]
+  }
+ },
+ {
+  "name": "pure_arabic",
+  "text": "سطر عربي خالص من الحروف المتصلة",
+  "checks": [
+   {
+    "kind": "contains",
+    "value": "سطر عربي"
+   },
+   {
+    "kind": "contains",
+    "value": "الحروف"
+   }
+  ],
+  "order_check": {
+   "kind": "sequence",
+   "values": [
+    "سطر",
+    "عربي",
+    "خالص",
+    "الحروف",
+    "المتصلة"
+   ]
+  }
+ }
+]

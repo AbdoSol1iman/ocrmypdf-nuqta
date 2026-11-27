@@ -1,0 +1,79 @@
+{
+ "tools": {
+  "as-written": {
+   "harakat_chars_in_extracted_layer": 282,
+   "extracted_chars": 1786
+  },
+  "bare": {
+   "harakat_chars_in_extracted_layer": 0,
+   "extracted_chars": 1504
+  }
+ },
+ "queries": [
+  {
+   "query": "«مثلين»: مثلا بهذا ومثلا بهذا فقال: ﴿ضرب",
+   "as-written": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   },
+   "bare": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   }
+  },
+  {
+   "query": "يقدر على شيء ومن رزقناه منا رزقا حسنا فه",
+   "as-written": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": true,
+    "mupdf_search_for_hits_raw": 0
+   },
+   "bare": {
+    "pdftotext_raw_match": true,
+    "pdftotext_normalized_match": true,
+    "mupdf_search_for_hits_raw": 32
+   }
+  },
+  {
+   "query": "هل يستئون الحمد لله بل أكثرهم لا يعلمون ",
+   "as-written": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   },
+   "bare": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 28
+   }
+  },
+  {
+   "query": "رجلين أحدهما أبكم لا يقدر على شيء وهو كل",
+   "as-written": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   },
+   "bare": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   }
+  },
+  {
+   "query": "يوجهه لا يأت بخير هل يستوي هو ومن يأمر ب",
+   "as-written": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   },
+   "bare": {
+    "pdftotext_raw_match": false,
+    "pdftotext_normalized_match": false,
+    "mupdf_search_for_hits_raw": 0
+   }
+  }
+ ]
+}

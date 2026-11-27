@@ -87,10 +87,16 @@ Nuqta OCR:
                         Nuqta inference backend (default: auto)
   --nuqta-device {auto,cpu,cuda}
                         Inference device: auto, cpu or cuda (default: auto)
-  --nuqta-dtype {bfloat16,float16,float32}
-                        Model weight dtype (default: bfloat16)
+  --nuqta-dtype {auto,bfloat16,float16,float32}
+                        Model weight dtype; auto picks what the device
+                        supports (default: auto)
   --nuqta-max-new-tokens NUQTA_MAX_NEW_TOKENS
                         token budget per line (default: 1024)
+  --nuqta-text-layer {as-written,bare}
+                        script written into the invisible text layer (default:
+                        as-written)
+  --nuqta-line-hocr     emit one ocrx_word per line instead of word-level
+                        boxes
 ```
 
 The plugin forces `--jobs 1` when Nuqta is selected so only one model instance
